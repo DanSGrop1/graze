@@ -485,15 +485,7 @@ document.getElementById('visit-date').value=new Date().toISOString().split('T')[
 initFirebase();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-// iOS standalone: add bottom padding so home indicator doesn't overlap nav
-(function(){
-  if (window.navigator.standalone !== true) return;
-  const nav = document.querySelector('.nav');
-  nav.style.paddingBottom = '34px';
-  document.querySelectorAll('.screen').forEach(s => {
-    s.style.paddingBottom = '106px'; // 72px nav + 34px inset
-  });
-})();
+// Nav sits at bottom:0 naturally — no JS padding needed
 </script>
 </body>
 </html>
