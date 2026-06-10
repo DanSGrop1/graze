@@ -485,17 +485,18 @@ document.getElementById('visit-date').value=new Date().toISOString().split('T')[
 initFirebase();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 
-// iOS standalone PWA — hardcode 34px bottom inset for home-bar iPhones
+// iOS standalone: the home indicator overlaps the nav bar — push it up
 (function(){
-  const isStandalone = window.navigator.standalone === true ||
-                       window.matchMedia('(display-mode: standalone)').matches;
-  if (!isStandalone) return;
-  // 34px = iPhone X/11/12/13/14/15 home indicator height
-  const inset = 34;
-  document.querySelector('.nav').style.paddingBottom = inset + 'px';
-  document.querySelectorAll('.screen').forEach(s => s.style.paddingBottom = (72 + inset) + 'px');
+  if (window.navigator.standalone !== true) return;
+  const nav = document.querySelector('.nav');
+  const inset = 34; // home indicator height on all Face ID iPhones
+  nav.style.paddingBottom = inset + 'px';
+  nav.style.height = (56 + inset) + 'px'; // ensure enough total height
+  document.querySelectorAll('.screen').forEach(s => {
+    s.style.paddingBottom = (56 + inset + 16) + 'px';
+  });
   const t = document.getElementById('toast');
-  if (t) t.style.bottom = (84 + inset) + 'px';
+  if (t) t.style.bottom = (56 + inset + 28) + 'px';
 })();
 </script>
 </body>
