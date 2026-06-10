@@ -1,4 +1,4 @@
-const CACHE = 'burger-rater-v6';
+const CACHE = 'burger-rater-v7';
 const ASSETS = [
   './',
   './index.html',
