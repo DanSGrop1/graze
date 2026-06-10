@@ -30,7 +30,7 @@ html,body{height:100%;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sa
 @keyframes spin{to{transform:rotate(360deg)}}
 .screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom,34px))}
 .screen.hidden{display:none}
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom,0px);padding-bottom:max(env(safe-area-inset-bottom,0px),0px);z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100}
 .nav-btn{flex:1;padding:10px 0 8px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text-2);transition:color 0.15s;font-family:inherit}
 .nav-btn.active{color:var(--amber)}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
@@ -484,6 +484,43 @@ buildKPIs();
 document.getElementById('visit-date').value=new Date().toISOString().split('T')[0];
 initFirebase();
 if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+
+// iOS standalone PWA safe-area fix
+// CSS env() is unreliable in WKWebView standalone mode — read it via JS instead
+function applySafeArea(){
+  const nav = document.querySelector('.nav');
+  const screens = document.querySelectorAll('.screen');
+  const toast = document.getElementById('toast');
+
+  // Try to read the actual computed safe area via a probe element
+  const probe = document.createElement('div');
+  probe.style.cssText = 'position:fixed;bottom:0;left:0;width:1px;height:env(safe-area-inset-bottom,0px);pointer-events:none;opacity:0;';
+  document.body.appendChild(probe);
+
+  // Give browser one frame to compute it
+  requestAnimationFrame(() => {
+    const inset = probe.getBoundingClientRect().height || 0;
+    document.body.removeChild(probe);
+
+    // If we got a real inset (iPhone with home bar = ~34px), apply it
+    // If not, check if we're in standalone mode and use a safe default
+    const isStandalone = window.navigator.standalone === true ||
+                         window.matchMedia('(display-mode: standalone)').matches;
+    const safeBot = inset > 0 ? inset : (isStandalone ? 34 : 0);
+
+    if (safeBot > 0) {
+      nav.style.paddingBottom = safeBot + 'px';
+      screens.forEach(s => {
+        s.style.paddingBottom = (72 + safeBot) + 'px';
+      });
+      if (toast) toast.style.bottom = (84 + safeBot) + 'px';
+    }
+  });
+}
+
+// Run on load and on resize (orientation change)
+window.addEventListener('load', applySafeArea);
+window.addEventListener('resize', applySafeArea);
 </script>
 </body>
 </html>
