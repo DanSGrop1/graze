@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Nashville Burger Rater</title>
+
+<!-- PWA manifest -->
+<link rel="manifest" href="./manifest.json">
+
+<!-- iOS PWA support -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Burger Rater">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+
+<!-- Android / Chrome theme -->
+<meta name="theme-color" content="#3B1F0E">
+<meta name="mobile-web-app-capable" content="yes">
+
+<!-- Prevent phone number detection -->
+<meta name="format-detection" content="telephone=no">
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --brown: #3B1F0E;
+    --amber: #E8820C;
+    --amber-dark: #D4740A;
+    --amber-light: #FDE8C8;
+    --cream: #FFF8EE;
+    --gold: #F5C07A;
+    --text: #1A0A00;
+    --text-muted: #7A5C3E;
+    --border: #E8D5BC;
+    --bg: #FAFAF8;
+    --white: #FFFFFF;
+    --success: #2E7D32;
+    --success-bg: #E8F5E9;
+    --radius: 10px;
+    --radius-sm: 7px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  /* Safe area for iPhone notch + home indicator */
+  .app { padding-bottom: calc(80px + env(safe-area-inset-bottom)); }
+  .header { padding-top: calc(20px + env(safe-area-inset-top)); }
+
+  .app { max-width: 480px; margin: 0 auto; padding: 0; }
+
+  /* Header */
+  .header { background: var(--brown); padding: 20px 20px 18px; text-align: center; position: sticky; top: 0; z-index: 10; }
+  .header-emoji { font-size: 28px; display: block; margin-bottom: 4px; }
+  .header h1 { font-size: 18px; font-weight: 700; color: #fff; letter-spacing: -0.01em; }
+  .header p { font-size: 12px; color: var(--gold); margin-top: 3px; letter-spacing: 0.04em; }
+
+  /* Sections */
+  .section { padding: 16px 16px 0; }
+  .section-title { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); margin-bottom: 10px; }
+
+  /* Fields */
+  .field { margin-bottom: 12px; }
+  .field label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+  .field input, .field textarea, .field select {
+    width: 100%; padding: 11px 13px; font-size: 15px; font-family: inherit;
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); color: var(--text); outline: none;
+    -webkit-appearance: none; appearance: none;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .field input:focus, .field textarea:focus {
+    border-color: var(--amber); box-shadow: 0 0 0 3px rgba(232,130,12,0.15);
+  }
+  .field textarea { resize: none; line-height: 1.5; }
+
+  /* Rater toggle */
+  .rater-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .rater-btn {
+    padding: 12px; font-size: 15px; font-weight: 700; font-family: inherit;
+    background: var(--white); border: 1.5px solid var(--border);
+    border-radius: var(--radius-sm); cursor: pointer; color: var(--text-muted);
+    transition: all 0.15s; letter-spacing: 0.03em;
+  }
+  .rater-btn.active { background: var(--amber); border-color: var(--amber); color: #fff; }
+
+  /* Divider */
+  .divider { height: 1px; background: var(--border); margin: 18px 16px 0; }
+
+  /* KPI blocks */
+  .kpi-list { padding: 0 16px; }
+  .kpi-block {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 12px 14px; margin-top: 10px;
+  }
+  .kpi-block.scored { border-color: var(--amber-light); background: #FFFCF8; }
+  .kpi-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .kpi-name { font-size: 14px; font-weight: 600; color: var(--text); }
+  .kpi-meta { display: flex; align-items: baseline; gap: 8px; }
+  .kpi-weight { font-size: 11px; color: var(--text-muted); }
+  .kpi-score-val { font-size: 20px; font-weight: 700; color: var(--amber); min-width: 28px; text-align: right; line-height: 1; }
+  .kpi-score-val.empty { color: var(--border); }
+  .btn-row { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  .score-btn {
+    aspect-ratio: 1; min-height: 30px; font-size: 11px; font-weight: 600; font-family: inherit;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 5px; cursor: pointer; color: var(--text-muted);
+    transition: all 0.1s; padding: 0;
+  }
+  .score-btn.lit { background: var(--amber); border-color: var(--amber); color: #fff; }
+  .score-btn:active { transform: scale(0.92); }
+
+  /* Live score bar */
+  .score-strip { margin: 18px 16px 0; background: var(--white); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px 16px; }
+  .score-strip-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; }
+  .score-strip-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-muted); }
+  .score-strip-num { font-size: 28px; font-weight: 800; color: var(--amber); }
+  .score-strip-max { font-size: 14px; color: var(--text-muted); font-weight: 400; }
+  .progress-track { height: 8px; background: var(--bg); border-radius: 4px; overflow: hidden; border: 1px solid var(--border); }
+  .progress-fill { height: 100%; background: linear-gradient(90deg, var(--amber), #F5B130); border-radius: 4px; transition: width 0.3s ease; }
+  .kpi-progress { font-size: 12px; color: var(--text-muted); margin-top: 8px; text-align: right; }
+
+  /* Action buttons */
+  .actions { padding: 16px; }
+  .btn-save {
+    width: 100%; padding: 15px; font-size: 16px; font-weight: 700; font-family: inherit;
+    background: var(--amber); color: #fff; border: none; border-radius: var(--radius);
+    cursor: pointer; letter-spacing: 0.01em; transition: all 0.15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-save:hover { background: var(--amber-dark); }
+  .btn-save:active { transform: scale(0.98); }
+  .btn-save:disabled { background: var(--border); color: var(--text-muted); cursor: not-allowed; transform: none; }
+  .btn-reset {
+    width: 100%; padding: 11px; font-size: 14px; font-family: inherit;
+    color: var(--text-muted); background: transparent; border: 1px solid var(--border);
+    border-radius: var(--radius); cursor: pointer; margin-top: 8px; transition: background 0.15s;
+  }
+  .btn-reset:hover { background: var(--white); }
+
+  /* Success state */
+  .success-banner {
+    display: none; background: var(--success-bg); border: 1px solid #A5D6A7;
+    border-radius: var(--radius); padding: 14px 16px; margin: 0 16px;
+    text-align: center;
+  }
+  .success-banner.show { display: block; }
+  .success-banner h3 { font-size: 15px; font-weight: 700; color: var(--success); margin-bottom: 4px; }
+  .success-banner p { font-size: 13px; color: #388E3C; }
+
+  /* Toast */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(8px);
+    background: var(--brown); color: #fff; padding: 10px 20px;
+    border-radius: 20px; font-size: 13px; font-weight: 500;
+    opacity: 0; transition: all 0.25s; pointer-events: none;
+    white-space: nowrap; z-index: 999; box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Import section */
+  .import-section { padding: 0 16px 4px; }
+  .import-label { display: block; font-size: 12px; font-weight: 600; color: var(--text-muted); margin-bottom: 6px; }
+  .import-row { display: flex; gap: 8px; }
+  .import-row input[type="file"] { display: none; }
+  .import-btn {
+    flex: 1; padding: 10px 12px; font-size: 13px; font-family: inherit; font-weight: 600;
+    background: var(--white); border: 1.5px dashed var(--border); border-radius: var(--radius-sm);
+    cursor: pointer; color: var(--text-muted); text-align: center; transition: all 0.15s;
+  }
+  .import-btn:hover { border-color: var(--amber); color: var(--amber); }
+  .import-status { font-size: 12px; color: var(--success); margin-top: 5px; font-weight: 500; }
+
+  /* Install banner */
+  .install-banner {
+    display: none; align-items: center; justify-content: space-between;
+    background: var(--amber); padding: 10px 16px; gap: 12px;
+  }
+  .install-banner p { font-size: 13px; font-weight: 600; color: #fff; flex: 1; }
+  .install-banner button {
+    padding: 7px 14px; font-size: 13px; font-weight: 700; font-family: inherit;
+    background: #fff; color: var(--amber); border: none; border-radius: 20px;
+    cursor: pointer; white-space: nowrap;
+  }
+  .install-banner .dismiss {
+    background: transparent; color: rgba(255,255,255,0.7); font-size: 18px;
+    padding: 4px 8px; border-radius: 50%;
+  }
+</style>
+</head>
+<body>
+<div class="install-banner" id="install-banner">
+  <p>📲 Add to home screen for the full app experience</p>
+  <button onclick="installApp()">Install</button>
+  <button class="dismiss" onclick="document.getElementById('install-banner').style.display='none'">×</button>
+</div>
+<div class="app">
+
+  <div class="header">
+    <span class="header-emoji">🍔</span>
+    <h1>Nashville Burger Rater</h1>
+    <p>KG &amp; DG Official Scorecard</p>
+  </div>
+
+  <!-- Import existing sheet -->
+  <div class="section" style="padding-top:14px;">
+    <div class="import-section">
+      <span class="import-label">Load existing spreadsheet (to append new rating)</span>
+      <div class="import-row">
+        <label class="import-btn" for="file-import">📂 Load Nashville_Burger_Ratings.xlsx</label>
+        <input type="file" id="file-import" accept=".xlsx" onchange="loadExisting(this)">
+      </div>
+      <div class="import-status" id="import-status"></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- Basic info -->
+  <div class="section" style="padding-top:14px;">
+    <div class="section-title">Restaurant info</div>
+    <div class="field">
+      <label>Restaurant name</label>
+      <input type="text" id="restaurant" placeholder="e.g. Hattie B's, Peg Leg Porker..." autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Who's rating?</label>
+      <div class="rater-grid">
+        <button class="rater-btn" data-rater="KG" onclick="selectRater('KG')">KG</button>
+        <button class="rater-btn" data-rater="DG" onclick="selectRater('DG')">DG</button>
+      </div>
+    </div>
+    <div class="field">
+      <label>Date visited</label>
+      <input type="date" id="visit-date">
+    </div>
+  </div>
+
+  <div class="divider"></div>
+
+  <!-- KPI scores -->
+  <div class="section" style="padding-top:14px;">
+    <div class="section-title">KPI scores — tap 1–10</div>
+  </div>
+  <div class="kpi-list" id="kpi-list"></div>
+
+  <!-- Live score -->
+  <div class="score-strip">
+    <div class="score-strip-top">
+      <span class="score-strip-label">Weighted score</span>
+      <div><span class="score-strip-num" id="total-score">—</span><span class="score-strip-max"> / 10</span></div>
+    </div>
+    <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+    <div class="kpi-progress" id="kpi-progress">0 of 11 rated</div>
+  </div>
+
+  <!-- Notes -->
+  <div class="section" style="padding-top:14px;">
+    <div class="field">
+      <label>Notes (optional)</label>
+      <textarea id="notes" rows="3" placeholder="Standout details, sauce, vibe..."></textarea>
+    </div>
+  </div>
+
+  <!-- Success banner -->
+  <div class="success-banner" id="success-banner">
+    <h3>✅ Rating saved!</h3>
+    <p id="success-msg">Check your downloads for the updated spreadsheet.</p>
+  </div>
+
+  <!-- Actions -->
+  <div class="actions">
+    <button class="btn-save" id="save-btn" onclick="saveRating()">
+      <span>💾</span> Save &amp; export to Excel
+    </button>
+    <button class="btn-reset" onclick="resetForm()">Clear form</button>
+  </div>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const KPIs = [
+  {key:'flavor',    label:'Flavor',              weight:0.20},
+  {key:'meat_q',   label:'Quality of meat',      weight:0.20},
+  {key:'mouthfeel',label:'Mouthfeel',             weight:0.10},
+  {key:'ratio',    label:'Meat ratio',            weight:0.10},
+  {key:'bun',      label:'Bun',                  weight:0.10},
+  {key:'sides',    label:'Sides',                weight:0.05},
+  {key:'roi',      label:'ROI / value',           weight:0.05},
+  {key:'novelty',  label:'Novelty',              weight:0.05},
+  {key:'dining',   label:'Dining experience',     weight:0.05},
+  {key:'service',  label:'Customer service',      weight:0.05},
+  {key:'craving',  label:'The craving (30-day)',  weight:0.05},
+];
+
+// Existing workbook loaded from file
+let existingWorkbook = null;
+const scores = {};
+let selectedRater = null;
+
+/* ── Load existing XLSX ───────────────────────────────────────────────── */
+function loadExisting(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      existingWorkbook = XLSX.read(e.target.result, {type:'array', cellStyles:true});
+      const ws = existingWorkbook.Sheets['Ratings'];
+      const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+      const entryCount = data.filter((r,i) => i >= 2 && r[0]).length;
+      document.getElementById('import-status').textContent =
+        `✓ Loaded — ${entryCount} existing ${entryCount===1?'rating':'ratings'} found`;
+    } catch(err) {
+      document.getElementById('import-status').textContent = '⚠️ Could not read file';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+/* ── Build KPI blocks ─────────────────────────────────────────────────── */
+function buildKPIs() {
+  const list = document.getElementById('kpi-list');
+  KPIs.forEach(kpi => {
+    const block = document.createElement('div');
+    block.className = 'kpi-block';
+    block.id = 'block-' + kpi.key;
+    block.innerHTML = `
+      <div class="kpi-top">
+        <span class="kpi-name">${kpi.label}</span>
+        <div class="kpi-meta">
+          <span class="kpi-weight">${Math.round(kpi.weight*100)}%</span>
+          <span class="kpi-score-val empty" id="val-${kpi.key}">—</span>
+        </div>
+      </div>
+      <div class="btn-row" id="row-${kpi.key}"></div>
+    `;
+    const row = block.querySelector('.btn-row');
+    for (let i = 1; i <= 10; i++) {
+      const b = document.createElement('button');
+      b.className = 'score-btn';
+      b.textContent = i;
+      b.onclick = () => setScore(kpi.key, i);
+      row.appendChild(b);
+    }
+    list.appendChild(block);
+  });
+}
+
+function setScore(key, val) {
+  scores[key] = val;
+  const row = document.getElementById('row-' + key);
+  row.querySelectorAll('.score-btn').forEach((b,i) => b.classList.toggle('lit', i < val));
+  const valEl = document.getElementById('val-' + key);
+  valEl.textContent = val;
+  valEl.classList.remove('empty');
+  document.getElementById('block-' + key).classList.add('scored');
+  updateTotal();
+}
+
+function updateTotal() {
+  let weighted = 0;
+  let count = 0;
+  KPIs.forEach(k => {
+    if (scores[k.key] !== undefined) {
+      weighted += scores[k.key] * k.weight;
+      count++;
+    }
+  });
+  const scoreEl = document.getElementById('total-score');
+  const fill = document.getElementById('progress-fill');
+  const prog = document.getElementById('kpi-progress');
+  if (count > 0) {
+    scoreEl.textContent = weighted.toFixed(2);
+    fill.style.width = (weighted / 10 * 100).toFixed(1) + '%';
+  } else {
+    scoreEl.textContent = '—';
+    fill.style.width = '0%';
+  }
+  prog.textContent = `${count} of ${KPIs.length} rated`;
+}
+
+function selectRater(r) {
+  selectedRater = r;
+  document.querySelectorAll('.rater-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.rater === r));
+}
+
+/* ── Toast ─────────────────────────────────────────────────────────────── */
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+/* ── Save & export ─────────────────────────────────────────────────────── */
+function saveRating() {
+  const restaurant = document.getElementById('restaurant').value.trim();
+  const dateVal    = document.getElementById('visit-date').value;
+  const notes      = document.getElementById('notes').value.trim();
+
+  if (!restaurant)    { toast('Add a restaurant name first'); return; }
+  if (!selectedRater) { toast('Pick a rater — KG or DG'); return; }
+  const missing = KPIs.filter(k => scores[k.key] === undefined);
+  if (missing.length) { toast(`${missing.length} KPI${missing.length>1?'s':''} still need a score`); return; }
+
+  let weighted = 0;
+  KPIs.forEach(k => { weighted += scores[k.key] * k.weight; });
+
+  const newRow = [
+    restaurant,
+    selectedRater,
+    dateVal || new Date().toLocaleDateString('en-US'),
+    ...KPIs.map(k => scores[k.key]),
+    parseFloat(weighted.toFixed(2)),
+    notes
+  ];
+
+  let wb;
+  if (existingWorkbook) {
+    wb = existingWorkbook;
+    const ws = wb.Sheets['Ratings'];
+    // Find next empty row (col A, starting from row 3 = index 2)
+    const data = XLSX.utils.sheet_to_json(ws, {header:1, defval:''});
+    let nextRow = 3;
+    for (let i = 2; i < data.length; i++) {
+      if (data[i][0]) nextRow = i + 2; // 1-indexed +1
+      else { nextRow = i + 1; break; }
+    }
+    // Append the new row
+    XLSX.utils.sheet_add_aoa(ws, [newRow], {origin: {r: nextRow - 1, c: 0}});
+  } else {
+    // Build minimal workbook with just the new row if no existing sheet loaded
+    wb = buildFreshWorkbook(newRow);
+  }
+
+  const filename = 'Nashville_Burger_Ratings.xlsx';
+  XLSX.writeFile(wb, filename);
+
+  document.getElementById('success-banner').classList.add('show');
+  document.getElementById('success-msg').textContent =
+    existingWorkbook
+      ? `"${restaurant}" added. Check downloads for updated spreadsheet.`
+      : `Saved as ${filename}. Load it next time to keep appending.`;
+
+  window.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function buildFreshWorkbook(row) {
+  const wb = XLSX.utils.book_new();
+
+  // Header rows
+  const headers = ['Restaurant','Rater','Date',
+    ...KPIs.map(k=>`${k.label} (${Math.round(k.weight*100)}%)`),
+    'Weighted Score','Notes'];
+  const ws = XLSX.utils.aoa_to_sheet([headers, row]);
+  XLSX.utils.book_append_sheet(wb, ws, 'Ratings');
+  return wb;
+}
+
+/* ── Reset ─────────────────────────────────────────────────────────────── */
+function resetForm() {
+  document.getElementById('restaurant').value = '';
+  document.getElementById('notes').value = '';
+  document.getElementById('visit-date').value = new Date().toISOString().split('T')[0];
+  selectedRater = null;
+  document.querySelectorAll('.rater-btn').forEach(b => b.classList.remove('active'));
+  Object.keys(scores).forEach(k => delete scores[k]);
+  KPIs.forEach(kpi => {
+    const v = document.getElementById('val-' + kpi.key);
+    v.textContent = '—'; v.classList.add('empty');
+    document.getElementById('row-' + kpi.key)
+      .querySelectorAll('.score-btn').forEach(b => b.classList.remove('lit'));
+    document.getElementById('block-' + kpi.key).classList.remove('scored');
+  });
+  document.getElementById('success-banner').classList.remove('show');
+  updateTotal();
+}
+
+// Init
+buildKPIs();
+document.getElementById('visit-date').value = new Date().toISOString().split('T')[0];
+</script>
+
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(reg => console.log('SW registered:', reg.scope))
+      .catch(err => console.log('SW failed:', err));
+  });
+}
+
+// PWA install prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('install-banner').style.display = 'flex';
+});
+
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+  deferredPrompt = null;
+});
+
+function installApp() {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(() => {
+    deferredPrompt = null;
+    document.getElementById('install-banner').style.display = 'none';
+  });
+}
+</script>
+</body>
+</html>
