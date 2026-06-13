@@ -3,11 +3,11 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<title>Nashville Burger Rater</title>
+<title>Graze</title>
 <link rel="manifest" href="./manifest.json">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="Burger Rater">
+<meta name="apple-mobile-web-app-title" content="Graze">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <meta name="theme-color" content="#1A0A00">
 <meta name="mobile-web-app-capable" content="yes">
@@ -15,191 +15,359 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-:root{--brown:#1A0A00;--brown-mid:#3B1F0E;--amber:#E8820C;--amber-dk:#C96E08;--amber-lt:#FDE8C8;--cream:#FFF8EE;--gold:#F5C07A;--text:#1A0A00;--text-2:#6B4226;--border:#E8D5BC;--surface:#FFFFFF;--bg:#FAF6F0;--green:#2E7D32;--green-bg:#E8F5E9;--red:#C62828;--safe-top:env(safe-area-inset-top,0px);--safe-bot:env(safe-area-inset-bottom,0px)}
+:root{
+  --accent:#E8820C;--accent-dk:#C96E08;--accent-lt:rgba(232,130,12,0.12);
+  --hero-dk:#1A0A00;--hero-mid:#3B1F0E;
+  --cream:#FFFCF8;--gold:#F5C07A;
+  --text:#1C1008;--text-2:#6B4226;--border:#E8D5BC;
+  --surface:#FFFFFF;--bg:#FAF6F0;
+  --score-low:#D64545;--score-mid:#E0A020;--score-high:#3A9D5D;
+  --green:#2E7D32;--green-bg:#E8F5E9;--alert:#C62828;
+}
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 html,body{height:100%;height:100dvh;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg);color:var(--text);overscroll-behavior:none}
 #shell{display:flex;flex-direction:column;height:100%;height:100dvh;max-width:480px;margin:0 auto}
-.topbar{background:var(--brown);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
-.topbar-title{font-size:17px;font-weight:700;color:#fff;letter-spacing:-0.01em}
-.topbar-sub{font-size:11px;color:var(--gold);letter-spacing:0.05em;margin-top:1px}
+.topbar{background:var(--hero-dk);padding:calc(14px + env(safe-area-inset-top,0px)) 16px 14px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0}
+.topbar-title{font-size:18px;font-weight:800;color:#fff;letter-spacing:0.02em}
+.topbar-sub{font-size:11px;color:var(--gold);letter-spacing:0.08em;margin-top:1px;text-transform:uppercase}
 .topbar-right{display:flex;align-items:center;gap:10px}
 .topbar-icon{font-size:26px;line-height:1}
 .sync-dot{width:8px;height:8px;border-radius:50%;background:#555;flex-shrink:0;transition:background 0.3s}
-.sync-dot.live{background:#4CAF50}.sync-dot.error{background:#F44336}.sync-dot.syncing{background:var(--amber);animation:pulse 1s infinite}
+.sync-dot.live{background:#4CAF50}.sync-dot.error{background:#F44336}.sync-dot.syncing{background:var(--accent);animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.4}}
 @keyframes spin{to{transform:rotate(360deg)}}
-.screen{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom,34px))}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+@keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+.offline-bar{background:var(--alert);color:#fff;text-align:center;font-size:12px;font-weight:600;padding:6px;display:none}
+.offline-bar.show{display:block}
+.screens-wrap{flex:1;position:relative;overflow:hidden}
+.screen{position:absolute;inset:0;overflow-y:auto;-webkit-overflow-scrolling:touch;padding-bottom:calc(72px + env(safe-area-inset-bottom,34px));animation:fadeIn 0.22s ease}
 .screen.hidden{display:none}
-.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;z-index:100}
+.nav{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:var(--surface);border-top:1px solid var(--border);display:flex;padding-bottom:env(safe-area-inset-bottom,34px);z-index:100}
 .nav-btn{flex:1;padding:10px 0 8px;background:none;border:none;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--text-2);transition:color 0.15s;font-family:inherit}
-.nav-btn.active{color:var(--amber)}
+.nav-btn.active{color:var(--accent)}
 .nav-btn svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .nav-label{font-size:10px;font-weight:600;letter-spacing:0.04em}
-.offline-bar{background:var(--red);color:#fff;text-align:center;font-size:12px;font-weight:600;padding:6px;display:none;letter-spacing:0.03em}
-.offline-bar.show{display:block}
-.loading-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;flex:1;gap:16px;color:var(--text-2)}
-.loading-screen.hidden{display:none}
-.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--amber);border-radius:50%;animation:spin 0.8s linear infinite}
-.loading-screen p{font-size:14px}
+/* Skeleton */
+.skeleton-screen{padding:20px 16px}
+.sk-hero{height:140px;border-radius:14px;margin-bottom:16px;background:linear-gradient(90deg,#eee 0px,#f5f5f5 40px,#eee 80px);background-size:600px;animation:shimmer 1.4s infinite linear}
+.sk-row{height:64px;border-radius:10px;margin-bottom:10px;background:linear-gradient(90deg,#eee 0px,#f5f5f5 40px,#eee 80px);background-size:600px;animation:shimmer 1.4s infinite linear}
+.sk-screen.hidden{display:none}
 /* Leaderboard */
-.lb-hero{background:linear-gradient(160deg,var(--brown) 0%,var(--brown-mid) 100%);padding:20px 16px 16px;color:#fff}
+.lb-hero{background:linear-gradient(160deg,var(--hero-dk) 0%,var(--hero-mid) 100%);padding:20px 16px 16px;color:#fff}
 .lb-hero h2{font-size:13px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
 .podium{display:grid;grid-template-columns:1fr 1.1fr 1fr;gap:8px;align-items:end;margin-bottom:4px}
-.pod{background:rgba(255,255,255,0.08);border-radius:10px;padding:12px 8px 10px;text-align:center;border:1px solid rgba(255,255,255,0.1);cursor:pointer}
-.pod.first{background:rgba(232,130,12,0.25);border-color:rgba(232,130,12,0.5)}
+.pod{background:rgba(255,255,255,0.08);border-radius:10px;padding:12px 8px 10px;text-align:center;border:1px solid rgba(255,255,255,0.1);cursor:pointer;transition:transform 0.1s}
+.pod:active{transform:scale(0.96)}
+.pod.first{background:rgba(255,255,255,0.15);border-color:rgba(255,255,255,0.3)}
 .pod-medal{font-size:22px;display:block;margin-bottom:4px}
 .pod-name{font-size:11px;font-weight:700;color:#fff;line-height:1.2;margin-bottom:6px;word-break:break-word}
-.pod-score{font-size:20px;font-weight:800;color:var(--amber);line-height:1}
+.pod-score{font-size:20px;font-weight:800;line-height:1}
 .pod-score-sub{font-size:10px;color:rgba(255,255,255,0.5);margin-top:2px}
 .lb-list{padding:12px 12px 0}
-.lb-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer}
-.lb-row:active{background:var(--cream)}
+.lb-row{display:flex;align-items:center;gap:10px;padding:10px 12px;background:var(--surface);border-radius:10px;margin-bottom:8px;border:1px solid var(--border);cursor:pointer;transition:transform 0.1s}
+.lb-row:active{transform:scale(0.99)}
 .lb-rank{font-size:13px;font-weight:700;color:var(--text-2);width:22px;text-align:center;flex-shrink:0}
 .lb-info{flex:1;min-width:0}
 .lb-name{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .lb-raters{font-size:11px;color:var(--text-2);margin-top:2px}
-.lb-avg{font-size:18px;font-weight:800;color:var(--amber);flex-shrink:0}
+.lb-avg{font-size:18px;font-weight:800;flex-shrink:0}
 .lb-bar-wrap{height:4px;background:var(--border);border-radius:2px;margin-top:4px;overflow:hidden}
-.lb-bar{height:100%;background:linear-gradient(90deg,var(--amber),#F5B130);border-radius:2px;transition:width 0.4s ease}
-.lb-empty{text-align:center;padding:48px 24px;color:var(--text-2)}
+.lb-bar{height:100%;border-radius:2px;transition:width 0.4s ease}
+.lb-empty{text-align:center;padding:40px 24px;color:var(--text-2)}
+.lb-empty-emoji{font-size:48px;display:block;margin-bottom:12px;opacity:0.5}
 .lb-empty p{font-size:14px;line-height:1.6}
+.lb-count{text-align:center;padding:8px 0 4px;font-size:11px;color:var(--text-2)}
 /* Rankings */
 .rank-tabs{display:flex;padding:12px 12px 8px}
 .rank-tab{flex:1;padding:9px;font-size:12px;font-weight:700;font-family:inherit;background:var(--bg);border:1px solid var(--border);color:var(--text-2);cursor:pointer;transition:all 0.15s}
 .rank-tab:first-child{border-radius:8px 0 0 8px}.rank-tab:last-child{border-radius:0 8px 8px 0}
-.rank-tab.active{background:var(--amber);border-color:var(--amber);color:#fff}
-.back-btn{display:flex;align-items:center;gap:6px;padding:14px 16px 4px;font-size:13px;font-weight:600;color:var(--amber);background:none;border:none;cursor:pointer;font-family:inherit}
-.rank-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:0 12px 12px;overflow:hidden}
-.rank-card-top{padding:14px 16px;background:var(--brown);display:flex;justify-content:space-between;align-items:center}
+.rank-tab.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.back-btn{display:flex;align-items:center;gap:6px;padding:14px 16px 4px;font-size:13px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit}
+.rank-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;margin:0 12px 12px;overflow:hidden;animation:fadeIn 0.25s ease}
+.rank-card-top{padding:14px 16px;background:var(--hero-dk);display:flex;justify-content:space-between;align-items:center}
 .rank-card-name{font-size:15px;font-weight:700;color:#fff}
-.rank-card-score{font-size:22px;font-weight:800;color:var(--amber)}
+.rank-card-score{font-size:22px;font-weight:800}
 .rank-kpis{padding:12px 16px}
 .kpi-row{display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border)}
 .kpi-row:last-child{border-bottom:none}
-.kpi-row-name{font-size:12px;color:var(--text-2);flex:0 0 140px}
-.kpi-scores{display:flex;gap:6px;align-items:center;flex:1}
-.kpi-pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px}
-.kpi-pill.kg{background:#E3F2FD;color:#1565C0}.kpi-pill.dg{background:#FCE4EC;color:#C62828}
-.kpi-weight{font-size:10px;color:var(--text-2);margin-left:auto}
+.kpi-row-name{font-size:12px;color:var(--text-2);flex:1}
+.kpi-scores{display:flex;gap:4px;align-items:center;flex-wrap:wrap}
+.kpi-pill{font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;white-space:nowrap}
+.kpi-pill.r1{background:#E3F2FD;color:#1565C0}.kpi-pill.r2{background:#FCE4EC;color:#C62828}
+.kpi-pill.r3{background:#E8F5E9;color:#2E7D32}.kpi-pill.r4{background:#FFF3E0;color:#E65100}
+.kpi-pill.r5{background:#F3E5F5;color:#6A1B9A}
+.kpi-weight{font-size:10px;color:var(--text-2);flex-shrink:0;margin-left:auto}
+/* Visit history */
+.visits-section{padding:0 16px 12px}
+.visits-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);margin-bottom:6px}
+.visit-item{display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:13px}
+.visit-item:last-child{border-bottom:none}
+.visit-meta{display:flex;align-items:center;gap:8px}
+.visit-rater{font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px;background:var(--accent-lt);color:var(--accent-dk)}
+.visit-date{font-size:12px;color:var(--text-2)}
+.visit-score{font-weight:800;font-size:14px}
 /* Rater */
 .rater-section{padding:14px 14px 0}
 .field-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);margin-bottom:6px;display:block}
 .field-input{width:100%;padding:11px 13px;font-size:15px;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);outline:none;-webkit-appearance:none;appearance:none;transition:border-color 0.15s,box-shadow 0.15s}
-.field-input:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(232,130,12,0.15)}
+.field-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+.field-input.error{border-color:var(--alert);box-shadow:0 0 0 3px rgba(198,40,40,0.12)}
 .field-group{margin-bottom:12px}
-.rater-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
-.rater-btn{padding:11px;font-size:15px;font-weight:700;font-family:inherit;background:var(--surface);border:1.5px solid var(--border);border-radius:9px;cursor:pointer;color:var(--text-2);transition:all 0.15s}
-.rater-btn.active{background:var(--amber);border-color:var(--amber);color:#fff}
+.field-err{font-size:11px;color:var(--alert);margin-top:4px;display:none}
+.field-err.show{display:block}
+.initials-input{width:100%;padding:11px 13px;font-size:22px;font-weight:700;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--accent);outline:none;-webkit-appearance:none;appearance:none;text-transform:uppercase;letter-spacing:0.2em;transition:border-color 0.15s,box-shadow 0.15s;text-align:center}
+.initials-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+.initials-input.error{border-color:var(--alert);box-shadow:0 0 0 3px rgba(198,40,40,0.12)}
+.initials-hint{font-size:11px;color:var(--text-2);margin-top:5px;text-align:center}
 .divider{height:1px;background:var(--border);margin:16px 14px 0}
 .kpi-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);padding:14px 14px 8px}
 .kpi-block{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 13px;margin:0 14px 8px;transition:border-color 0.15s}
-.kpi-block.scored{border-color:var(--amber-lt);background:#FFFCF8}
+.kpi-block.scored{border-color:var(--accent-lt);background:var(--cream)}
 .kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
 .kpi-name{font-size:13px;font-weight:600;color:var(--text)}
 .kpi-meta{display:flex;align-items:baseline;gap:7px}
 .kpi-wt{font-size:10px;color:var(--text-2)}
-.kpi-val{font-size:19px;font-weight:800;color:var(--amber);min-width:26px;text-align:right}
+.kpi-val{font-size:19px;font-weight:800;color:var(--accent);min-width:26px;text-align:right}
 .kpi-val.empty{color:var(--border)}
 .btn-row{display:grid;grid-template-columns:repeat(10,1fr);gap:3px}
 .score-btn{aspect-ratio:1;min-height:28px;font-size:11px;font-weight:600;font-family:inherit;background:var(--bg);border:1px solid var(--border);border-radius:5px;cursor:pointer;color:var(--text-2);transition:all 0.1s;padding:0}
-.score-btn.lit{background:var(--amber);border-color:var(--amber);color:#fff}
-.score-btn:active{transform:scale(0.9)}
+.score-btn.lit{background:var(--accent);border-color:var(--accent);color:#fff}
+.score-btn:active{transform:scale(0.85)}
 .score-strip{margin:6px 14px 0;background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:13px 14px}
 .score-strip-top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px}
 .score-strip-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2)}
-.score-num{font-size:26px;font-weight:800;color:var(--amber)}
+.score-num{font-size:26px;font-weight:800;color:var(--accent)}
 .score-denom{font-size:13px;color:var(--text-2)}
 .progress-track{height:6px;background:var(--bg);border-radius:3px;overflow:hidden;border:1px solid var(--border)}
-.progress-fill{height:100%;background:linear-gradient(90deg,var(--amber),#F5B130);border-radius:3px;transition:width 0.3s ease}
+.progress-fill{height:100%;background:var(--accent);border-radius:3px;transition:width 0.3s ease}
 .kpi-progress{font-size:11px;color:var(--text-2);margin-top:6px;text-align:right}
 .actions{padding:14px}
-.btn-save{width:100%;padding:15px;font-size:16px;font-weight:700;font-family:inherit;background:var(--amber);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s}
-.btn-save:active{background:var(--amber-dk);transform:scale(0.98)}
+.btn-save{width:100%;padding:15px;font-size:16px;font-weight:700;font-family:inherit;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;transition:all 0.15s}
+.btn-save:active{background:var(--accent-dk);transform:scale(0.98)}
 .btn-save:disabled{background:var(--border);color:var(--text-2);cursor:not-allowed;transform:none}
 .btn-reset{width:100%;padding:10px;font-size:14px;font-family:inherit;color:var(--text-2);background:transparent;border:1px solid var(--border);border-radius:10px;cursor:pointer;margin-top:8px}
-.success-banner{display:none;background:var(--green-bg);border:1px solid #A5D6A7;border-radius:10px;padding:14px 16px;margin:0 14px;text-align:center}
+.success-banner{display:none;background:var(--green-bg);border:1px solid #A5D6A7;border-radius:10px;padding:14px 16px;margin:0 14px;text-align:center;animation:fadeIn 0.3s ease}
 .success-banner.show{display:block}
 .success-banner h3{font-size:15px;font-weight:700;color:var(--green)}
 .success-banner p{font-size:13px;color:#388E3C;margin-top:3px}
 .notes-field{margin:0 14px}
 .notes-field textarea{width:100%;padding:11px 13px;font-size:14px;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);outline:none;resize:none;line-height:1.5;transition:border-color 0.15s}
-.notes-field textarea:focus{border-color:var(--amber);box-shadow:0 0 0 3px rgba(232,130,12,0.15)}
-.toast{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,34px));left:50%;transform:translateX(-50%) translateY(8px);background:var(--brown);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,0.25)}
+.notes-field textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+.toast{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,34px));left:50%;transform:translateX(-50%) translateY(8px);background:var(--hero-dk);color:#fff;padding:10px 20px;border-radius:20px;font-size:13px;font-weight:500;opacity:0;transition:all 0.25s;pointer-events:none;white-space:nowrap;z-index:999;box-shadow:0 4px 16px rgba(0,0,0,0.25)}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+/* Autocomplete */
+.ac-wrap{position:relative}
+.ac-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--surface);border:1px solid var(--border);border-top:none;border-radius:0 0 9px 9px;z-index:200;max-height:180px;overflow-y:auto;display:none;box-shadow:0 4px 12px rgba(0,0,0,0.1)}
+.ac-dropdown.show{display:block}
+.ac-item{padding:11px 13px;font-size:14px;color:var(--text);cursor:pointer;border-bottom:1px solid var(--border)}
+.ac-item:last-child{border-bottom:none}
+.ac-item:active{background:var(--bg)}
+.ac-item strong{font-weight:700;color:var(--accent)}
+/* Merge */
+.merge-section{padding:14px}
+.merge-title{font-size:13px;font-weight:700;color:var(--text-2);text-transform:uppercase;letter-spacing:0.08em;margin-bottom:12px}
+.merge-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden}
+.merge-card-header{padding:10px 14px;font-size:14px;font-weight:700;color:var(--text);display:flex;justify-content:space-between;align-items:center}
+.merge-card-count{font-size:11px;color:var(--text-2);font-weight:400}
+.merge-aliases{padding:0 14px 10px}
+.merge-btn{font-size:11px;font-weight:700;padding:7px 10px;border-radius:8px;border:none;cursor:pointer;font-family:inherit}
+.merge-btn.primary{background:var(--accent);color:#fff}
+.merge-btn.danger{background:var(--accent-lt);color:var(--accent-dk)}
+.merge-empty{text-align:center;padding:48px 24px;color:var(--text-2);font-size:14px;line-height:1.6}
+.merge-pending{background:var(--accent-lt);border-radius:8px;padding:12px;margin-bottom:12px;font-size:13px;line-height:1.5;color:var(--text)}
+.merge-cancel-btn{width:100%;margin-top:8px;background:var(--surface);color:var(--text-2);border:1px solid var(--border);border-radius:8px;padding:9px;font-size:13px;font-weight:700;font-family:inherit;cursor:pointer}
+/* Confirm modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.5);display:none;align-items:center;justify-content:center;z-index:1000;padding:24px;animation:fadeIn 0.2s ease}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border-radius:14px;padding:20px;max-width:320px;width:100%;text-align:center}
+.modal h3{font-size:17px;font-weight:700;color:var(--text);margin-bottom:8px}
+.modal p{font-size:14px;color:var(--text-2);line-height:1.5;margin-bottom:18px}
+.modal-actions{display:flex;gap:10px}
+.modal-actions button{flex:1;padding:12px;font-size:14px;font-weight:700;font-family:inherit;border-radius:9px;cursor:pointer;border:none}
+.modal-cancel{background:var(--bg);color:var(--text-2);border:1px solid var(--border)!important}
+.modal-confirm{background:var(--alert);color:#fff}
+/* Pull to refresh */
+.ptr{position:absolute;top:0;left:0;right:0;display:flex;align-items:center;justify-content:center;height:0;overflow:hidden;color:var(--text-2);font-size:12px;font-weight:600;transition:height 0.2s;z-index:50}
+.ptr.visible{height:44px}
+.ptr svg{width:18px;height:18px;margin-right:6px;animation:spin 0.8s linear infinite}
+
+/* Identity setup modal */
+.identity-overlay{position:fixed;inset:0;background:var(--hero-dk);display:none;flex-direction:column;align-items:center;justify-content:center;z-index:2000;padding:32px 24px;text-align:center}
+.identity-overlay.show{display:flex}
+.identity-emoji{font-size:52px;margin-bottom:16px}
+.identity-overlay h2{font-size:24px;font-weight:800;color:#fff;margin-bottom:6px;letter-spacing:0.02em}
+.identity-overlay .ident-sub{font-size:14px;color:var(--gold);margin-bottom:28px;line-height:1.5;max-width:300px}
+.identity-fields{width:100%;max-width:320px}
+.identity-fields label{display:block;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:rgba(255,255,255,0.6);margin-bottom:5px;margin-top:14px}
+.identity-fields input{width:100%;padding:13px 14px;font-size:16px;font-family:inherit;background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);border-radius:10px;color:#fff;outline:none;transition:border-color 0.15s}
+.identity-fields input::placeholder{color:rgba(255,255,255,0.4)}
+.identity-fields input:focus{border-color:var(--accent)}
+.identity-fields input.error{border-color:#FF6B6B;box-shadow:0 0 0 3px rgba(255,107,107,0.2)}
+.identity-preview{margin-top:18px;font-size:13px;color:rgba(255,255,255,0.7);min-height:20px}
+.identity-preview strong{color:var(--accent);font-size:15px}
+.identity-btn{width:100%;max-width:320px;margin-top:24px;padding:15px;font-size:16px;font-weight:700;font-family:inherit;background:var(--accent);color:#fff;border:none;border-radius:10px;cursor:pointer;transition:all 0.15s}
+.identity-btn:active{transform:scale(0.98)}
+/* Rating-as chip */
+.rating-as{display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:11px 13px}
+.rating-as-label{display:flex;align-items:center;gap:9px}
+.rating-as-pill{font-size:13px;font-weight:700;padding:4px 11px;border-radius:20px;background:var(--accent-lt);color:var(--accent-dk)}
+.rating-as-name{font-size:14px;color:var(--text)}
+.rating-as-change{font-size:12px;font-weight:600;color:var(--accent);background:none;border:none;cursor:pointer;font-family:inherit;padding:4px}
+
+/* City filter chips */
+.city-filter{display:flex;gap:6px;padding:10px 12px 4px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.city-filter::-webkit-scrollbar{display:none}
+.city-chip{flex-shrink:0;padding:6px 14px;font-size:12px;font-weight:700;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:20px;color:var(--text-2);cursor:pointer;white-space:nowrap;transition:all 0.15s}
+.city-chip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.lb-city{font-size:10px;color:var(--text-2);font-weight:600;margin-left:6px;opacity:0.7}
+/* City select in rater */
+.city-select-wrap{display:flex;gap:8px}
+.city-select{flex:1;padding:11px 13px;font-size:15px;font-family:inherit;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);outline:none;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%237A3020' stroke-width='1.5' fill='none'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 13px center;padding-right:34px}
+.city-select:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-lt)}
+.city-select.error{border-color:var(--alert);box-shadow:0 0 0 3px rgba(198,40,40,0.12)}
+
+/* Mode switcher in topbar */
+.mode-switch{display:flex;align-items:center;gap:10px;background:none;border:none;cursor:pointer;font-family:inherit;padding:0;text-align:left}
+.mode-switch-emoji{font-size:28px;line-height:1}
+.mode-switch-text{display:flex;flex-direction:column}
+.mode-switch .topbar-title{font-size:18px;font-weight:800;color:#fff;letter-spacing:0.02em}
+.mode-switch .topbar-sub{font-size:11px;color:var(--gold);letter-spacing:0.06em;margin-top:1px;text-transform:uppercase}
+/* Mode picker overlay */
+.mode-picker-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:none;align-items:flex-end;justify-content:center;z-index:1500;animation:fadeIn 0.2s ease}
+.mode-picker-overlay.show{display:flex}
+.mode-picker{background:var(--surface);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px calc(24px + env(safe-area-inset-bottom,20px));animation:slideUp 0.25s ease}
+@keyframes slideUp{from{transform:translateY(100%)}to{transform:translateY(0)}}
+.mode-picker h3{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);margin-bottom:14px;text-align:center}
+.mode-option{display:flex;align-items:center;gap:14px;padding:14px;border-radius:12px;border:1.5px solid var(--border);margin-bottom:10px;cursor:pointer;transition:all 0.15s}
+.mode-option.active{border-color:var(--accent);background:var(--accent-lt)}
+.mode-option-emoji{font-size:30px}
+.mode-option-info{flex:1}
+.mode-option-label{font-size:16px;font-weight:700;color:var(--text)}
+.mode-option-meta{font-size:12px;color:var(--text-2);margin-top:2px}
+.mode-option-check{font-size:18px;color:var(--accent);opacity:0;transition:opacity 0.15s}
+.mode-option.active .mode-option-check{opacity:1}
+.mode-picker-close{width:100%;padding:13px;margin-top:6px;font-size:14px;font-weight:700;font-family:inherit;background:var(--bg);color:var(--text-2);border:1px solid var(--border);border-radius:10px;cursor:pointer}
 </style>
 </head>
 <body>
+<div class="identity-overlay" id="identity-overlay">
+  <div class="identity-emoji">🍽️</div>
+  <h2>Welcome to Graze</h2>
+  <div class="ident-sub">Enter your name so your ratings are tagged to you. You'll show up as your first name and last initial.</div>
+  <div class="identity-fields">
+    <label>First name</label>
+    <input type="text" id="ident-first" placeholder="John" autocomplete="given-name" autocapitalize="words">
+    <label>Last name</label>
+    <input type="text" id="ident-last" placeholder="Smith" autocomplete="family-name" autocapitalize="words">
+    <div class="identity-preview" id="ident-preview"></div>
+  </div>
+  <button class="identity-btn" onclick="saveIdentity()">Start rating</button>
+</div>
 <div id="shell">
   <div class="topbar">
-    <div>
-      <div class="topbar-title">Nashville Burger Rater</div>
-      <div class="topbar-sub">KG &amp; DG · Official Scorecard</div>
-    </div>
+    <button class="mode-switch" id="mode-switch" onclick="openModePicker()">
+      <span class="mode-switch-emoji" id="mode-switch-emoji">🍔</span>
+      <span class="mode-switch-text">
+        <span class="topbar-title">Graze</span>
+        <span class="topbar-sub" id="mode-switch-label">Burgers ▾</span>
+      </span>
+    </button>
     <div class="topbar-right">
       <div class="sync-dot syncing" id="sync-dot" title="Connecting…"></div>
-      <div class="topbar-icon">🍔</div>
     </div>
   </div>
-  <div class="offline-bar" id="offline-bar">⚠️ Offline — ratings will sync when reconnected</div>
+  <div class="offline-bar" id="offline-bar">⚠️ Offline — your ratings will sync when reconnected</div>
 
-  <div class="loading-screen" id="loading-screen">
-    <div class="spinner"></div>
-    <p>Loading ratings…</p>
-  </div>
-
-  <div class="screen hidden" id="screen-lb">
-    <div class="lb-hero">
-      <h2>🏆 Leaderboard</h2>
-      <div class="podium" id="podium"></div>
-    </div>
-    <div class="lb-list" id="lb-list"></div>
-  </div>
-
-  <div class="screen hidden" id="screen-rankings">
-    <div id="rankings-content"></div>
-  </div>
-
-  <div class="screen hidden" id="screen-rater">
-    <div class="rater-section" style="padding-top:16px">
-      <div class="field-group">
-        <label class="field-label">Restaurant</label>
-        <input class="field-input" type="text" id="restaurant" placeholder="e.g. Hattie B's, Peg Leg Porker…" autocomplete="off">
+  <div class="screens-wrap" id="screens-wrap">
+    <!-- Skeleton -->
+    <div class="sk-screen" id="skeleton">
+      <div class="skeleton-screen">
+        <div class="sk-hero"></div>
+        <div class="sk-row"></div><div class="sk-row"></div><div class="sk-row"></div>
       </div>
-      <div class="field-group">
-        <label class="field-label">Who's rating?</label>
-        <div class="rater-grid">
-          <button class="rater-btn" data-rater="KG" onclick="selectRater('KG')">KG</button>
-          <button class="rater-btn" data-rater="DG" onclick="selectRater('DG')">DG</button>
+    </div>
+
+    <!-- LEADERBOARD -->
+    <div class="screen hidden" id="screen-lb">
+      <div class="ptr" id="ptr"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>Refreshing…</div>
+      <div class="lb-hero">
+        <h2>🏆 Leaderboard</h2>
+        <div class="podium" id="podium"></div>
+      </div>
+      <div class="city-filter" id="city-filter"></div>
+      <div class="lb-list" id="lb-list"></div>
+    </div>
+
+    <!-- RANKINGS -->
+    <div class="screen hidden" id="screen-rankings">
+      <div id="rankings-content"></div>
+    </div>
+
+    <!-- RATER -->
+    <div class="screen hidden" id="screen-rater">
+      <div class="rater-section" style="padding-top:16px">
+        <div class="field-group">
+          <label class="field-label">City</label>
+          <div class="city-select-wrap">
+            <select class="city-select" id="city-select" onchange="onCitySelectChange()"></select>
+          </div>
+          <input class="field-input" type="text" id="city-new" placeholder="Enter new city" style="display:none;margin-top:8px">
+          <div class="field-err" id="err-city">Please pick or enter a city</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label" id="place-label">Restaurant</label>
+          <input class="field-input" type="text" id="restaurant" placeholder="Search or add a place…" id="restaurant-ph-marker" autocomplete="off">
+          <div class="field-err" id="err-restaurant">Please enter a name</div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Rating as</label>
+          <div class="rating-as">
+            <div class="rating-as-label">
+              <span class="rating-as-pill" id="rating-as-pill">—</span>
+              <span class="rating-as-name" id="rating-as-name">Not set</span>
+            </div>
+            <button class="rating-as-change" onclick="openIdentityEdit()">Change</button>
+          </div>
+        </div>
+        <div class="field-group">
+          <label class="field-label">Date visited</label>
+          <input class="field-input" type="date" id="visit-date">
         </div>
       </div>
-      <div class="field-group">
-        <label class="field-label">Date visited</label>
-        <input class="field-input" type="date" id="visit-date">
+      <div class="divider"></div>
+      <div class="kpi-section-label">KPI scores — tap 1–10</div>
+      <div id="kpi-list"></div>
+      <div class="score-strip">
+        <div class="score-strip-top">
+          <span class="score-strip-label">Weighted score</span>
+          <div><span class="score-num" id="total-score">—</span><span class="score-denom"> / 10</span></div>
+        </div>
+        <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+        <div class="kpi-progress" id="kpi-progress">0 of 0 rated</div>
+      </div>
+      <div class="divider" style="margin-top:14px"></div>
+      <div class="kpi-section-label">Notes (optional)</div>
+      <div class="notes-field">
+        <textarea id="notes" rows="3" placeholder="Standout details, notes, vibe…"></textarea>
+      </div>
+      <div class="success-banner" id="success-banner">
+        <h3>✅ Rating saved!</h3>
+        <p id="success-msg"></p>
+      </div>
+      <div class="actions">
+        <button class="btn-save" id="btn-save" onclick="saveRating()"><span id="save-emoji">🍔</span> Save rating</button>
+        <button class="btn-reset" onclick="askClearForm()">Clear form</button>
       </div>
     </div>
-    <div class="divider"></div>
-    <div class="kpi-section-label">KPI scores — tap 1–10</div>
-    <div id="kpi-list"></div>
-    <div class="score-strip">
-      <div class="score-strip-top">
-        <span class="score-strip-label">Weighted score</span>
-        <div><span class="score-num" id="total-score">—</span><span class="score-denom"> / 10</span></div>
+
+    <!-- MERGE -->
+    <div class="screen hidden" id="screen-merge">
+      <div class="merge-section">
+        <div class="merge-title">Merge duplicates</div>
+        <div id="merge-pending-banner"></div>
+        <div id="merge-list"></div>
       </div>
-      <div class="progress-track"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
-      <div class="kpi-progress" id="kpi-progress">0 of 11 rated</div>
-    </div>
-    <div class="divider" style="margin-top:14px"></div>
-    <div class="kpi-section-label">Notes (optional)</div>
-    <div class="notes-field">
-      <textarea id="notes" rows="3" placeholder="Standout details, sauce, vibe…"></textarea>
-    </div>
-    <div class="success-banner" id="success-banner">
-      <h3>✅ Rating saved!</h3>
-      <p id="success-msg"></p>
-    </div>
-    <div class="actions">
-      <button class="btn-save" id="btn-save" onclick="saveRating()">💾 Save rating</button>
-      <button class="btn-reset" onclick="resetForm()">Clear form</button>
     </div>
   </div>
 
@@ -216,11 +384,34 @@ html,body{height:100%;height:100dvh;font-family:-apple-system,BlinkMacSystemFont
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span class="nav-label">Rate</span>
     </button>
+    <button class="nav-btn" id="nav-merge" onclick="showScreen('merge')">
+      <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/><circle cx="12" cy="12" r="9" opacity="0.4"/></svg>
+      <span class="nav-label">Merge</span>
+    </button>
   </nav>
 </div>
+
+<div class="modal-overlay" id="clear-modal">
+  <div class="modal">
+    <h3>Clear this rating?</h3>
+    <p>All scores and notes you've entered will be erased.</p>
+    <div class="modal-actions">
+      <button class="modal-cancel" onclick="closeClearModal()">Keep editing</button>
+      <button class="modal-confirm" onclick="doClearForm()">Clear it</button>
+    </div>
+  </div>
+</div>
+
+<div class="mode-picker-overlay" id="mode-picker-overlay">
+  <div class="mode-picker">
+    <h3>Choose a category</h3>
+    <div id="mode-options"></div>
+    <button class="mode-picker-close" onclick="closeModePicker()">Cancel</button>
+  </div>
+</div>
 <div class="toast" id="toast"></div>
+
 <script>
-// ══ PASTE YOUR FIREBASE CONFIG HERE ══════════════════════════════════════════
 const firebaseConfig = {
   apiKey:            "AIzaSyB8oSB-K7MJ0jiJgUtTzFra0Qsl8ZcjF2w",
   authDomain:        "nashville-burger-rater.firebaseapp.com",
@@ -230,101 +421,336 @@ const firebaseConfig = {
   messagingSenderId: "111439093518",
   appId:             "1:111439093518:web:1b30b7e3a45a4c9531415f"
 };
-// ═════════════════════════════════════════════════════════════════════════════
 
-const KPIs=[{key:'flavor',label:'Flavor',weight:.2},{key:'meat_q',label:'Quality of meat',weight:.2},{key:'mouthfeel',label:'Mouthfeel',weight:.1},{key:'ratio',label:'Meat ratio',weight:.1},{key:'bun',label:'Bun',weight:.1},{key:'sides',label:'Sides',weight:.05},{key:'roi',label:'ROI / value',weight:.05},{key:'novelty',label:'Novelty',weight:.05},{key:'dining',label:'Dining experience',weight:.05},{key:'service',label:'Customer service',weight:.05},{key:'craving',label:'The craving (30-day)',weight:.05}];
+// ═══ MODE SYSTEM — add a new food category by appending to this array ═══
+const MODES={
+  burger:{
+    id:'burger',label:'Burgers',emoji:'🍔',
+    placeLabel:'Restaurant',placePlural:'restaurants',placeSingular:'restaurant',
+    placePlaceholder:"e.g. Hattie B's, Peg Leg Porker…",
+    notesPlaceholder:'Standout details, sauce, vibe…',
+    theme:{accent:'#E8820C',accentDk:'#C96E08',accentLt:'rgba(232,130,12,0.12)',heroDk:'#1A0A00',heroMid:'#3B1F0E',cream:'#FFFCF8',gold:'#F5C07A',text2:'#6B4226',border:'#E8D5BC',bg:'#FAF6F0'},
+    kpis:[
+      {key:'flavor',label:'Flavor',weight:0.20},
+      {key:'meat_q',label:'Quality of meat',weight:0.20},
+      {key:'mouthfeel',label:'Mouthfeel',weight:0.10},
+      {key:'ratio',label:'Meat ratio',weight:0.10},
+      {key:'bun',label:'Bun',weight:0.10},
+      {key:'sides',label:'Sides',weight:0.05},
+      {key:'roi',label:'ROI / value',weight:0.05},
+      {key:'novelty',label:'Novelty',weight:0.05},
+      {key:'dining',label:'Dining experience',weight:0.05},
+      {key:'service',label:'Customer service',weight:0.05},
+      {key:'craving',label:'The craving (30-day)',weight:0.05},
+    ]
+  },
+  pizza:{
+    id:'pizza',label:'Pizza',emoji:'🍕',
+    placeLabel:'Pizzeria',placePlural:'pizzerias',placeSingular:'pizzeria',
+    placePlaceholder:'e.g. Five Points, Emmy Squared…',
+    notesPlaceholder:'Sauce depth, char, fold, overall vibe…',
+    theme:{accent:'#E8440C',accentDk:'#C93A0A',accentLt:'rgba(232,68,12,0.12)',heroDk:'#1C0A00',heroMid:'#7B1A10',cream:'#FFFBF9',gold:'#F5B07A',text2:'#7A3020',border:'#EDD5C8',bg:'#FAF3F0'},
+    kpis:[
+      {key:'flavor',label:'Overall flavor',weight:0.15},
+      {key:'sauce',label:'Sauce',weight:0.15},
+      {key:'cheese',label:'Cheese',weight:0.15},
+      {key:'crust',label:'Crust / dough',weight:0.15},
+      {key:'toppings',label:'Toppings',weight:0.10},
+      {key:'char',label:'Char / bake',weight:0.05},
+      {key:'grease',label:'Grease level',weight:0.05},
+      {key:'freshness',label:'Freshness / ingredient quality',weight:0.05},
+      {key:'balance',label:'Flavor balance',weight:0.05},
+      {key:'roi',label:'Value / ROI',weight:0.05},
+      {key:'dining',label:'Dining experience',weight:0.03},
+      {key:'craving',label:'The craving (30-day)',weight:0.05},
+      {key:'unique',label:'Uniqueness',weight:0.03},
+      {key:'present',label:'Presentation',weight:0.02},
+      {key:'ratio',label:'Crust-to-topping ratio',weight:0.02},
+    ]
+  }
+};
+const MODE_ORDER=['burger','pizza'];
+let currentMode='burger';
+// KPIs is now a getter that reflects the active mode
+let KPIs=MODES.burger.kpis;
 
-const SEED=[
-  {restaurant:"Dreamburger",rater:"KG",date:"2026-04-17",flavor:8,meat_q:8,mouthfeel:8,ratio:8,bun:7,sides:2,roi:7,novelty:6,dining:4,service:5,craving:null,notes:""},
-  {restaurant:"Dreamburger",rater:"DG",date:"2026-04-17",flavor:8,meat_q:9,mouthfeel:6,ratio:7,bun:5,sides:2,roi:6,novelty:5,dining:3,service:4,craving:null,notes:""},
-  {restaurant:"Gabby's Burger",rater:"DG",date:"2026-04-24",flavor:7,meat_q:4,mouthfeel:4,ratio:9,bun:7,sides:7,roi:7,novelty:3,dining:8,service:8,craving:null,notes:"Small town feel."},
-  {restaurant:"Gabby's Burger",rater:"KG",date:"2026-04-24",flavor:9,meat_q:7,mouthfeel:6,ratio:9,bun:8,sides:7,roi:8,novelty:6,dining:9,service:9,craving:null,notes:"A bit drippy but solid burger. Would recommend."},
-  {restaurant:"Cledis",rater:"DG",date:"2026-05-08",flavor:9,meat_q:9,mouthfeel:7,ratio:10,bun:5,sides:6,roi:8,novelty:9,dining:8,service:8,craving:null,notes:"The best I have had so far."},
-  {restaurant:"Cledis",rater:"KG",date:"2026-05-08",flavor:9,meat_q:9,mouthfeel:9,ratio:9,bun:8,sides:9,roi:9,novelty:9,dining:8,service:8,craving:null,notes:"Cledis burgers add beef. Very good"},
-  {restaurant:"Schulman's",rater:"KG",date:"2026-05-01",flavor:4,meat_q:3,mouthfeel:6,ratio:8,bun:8,sides:8,roi:7,novelty:2,dining:6,service:4,craving:null,notes:"Meat was a let down. Nice veggies. Nothing to write home about."}
-];
 
-let db=null,ratings=[],currentScreen='lb',rankingsTab='all',selectedRater=null;
+// ── Mode application ──────────────────────────────────────────────────────
+function loadMode(){
+  try{const m=localStorage.getItem('graze_mode');if(m&&MODES[m])currentMode=m;}catch(e){}
+}
+function applyMode(){
+  const m=MODES[currentMode];
+  KPIs=m.kpis;
+  // Recolor :root
+  const r=document.documentElement.style;
+  const th=m.theme;
+  r.setProperty('--accent',th.accent);
+  r.setProperty('--accent-dk',th.accentDk);
+  r.setProperty('--accent-lt',th.accentLt);
+  r.setProperty('--hero-dk',th.heroDk);
+  r.setProperty('--hero-mid',th.heroMid);
+  r.setProperty('--cream',th.cream);
+  r.setProperty('--gold',th.gold);
+  r.setProperty('--text-2',th.text2);
+  r.setProperty('--border',th.border);
+  r.setProperty('--bg',th.bg);
+  // Theme-color meta for status bar
+  const meta=document.querySelector('meta[name="theme-color"]');if(meta)meta.content=th.heroDk;
+  // Topbar switcher
+  document.getElementById('mode-switch-emoji').textContent=m.emoji;
+  document.getElementById('mode-switch-label').textContent=m.label+' \u25BE';
+  // Rater labels
+  document.getElementById('place-label').textContent=m.placeLabel;
+  const restInp=document.getElementById('restaurant');if(restInp)restInp.placeholder=m.placePlaceholder;
+  const notesInp=document.getElementById('notes');if(notesInp)notesInp.placeholder=m.notesPlaceholder;
+  const saveEmoji=document.getElementById('save-emoji');if(saveEmoji)saveEmoji.textContent=m.emoji;
+  const emptyEmoji=document.getElementById('lb-empty-emoji');if(emptyEmoji)emptyEmoji.textContent=m.emoji;
+}
+function dbPath(){return 'modes/'+currentMode+'/ratings';}
+
+function openModePicker(){
+  const wrap=document.getElementById('mode-options');
+  wrap.innerHTML=MODE_ORDER.map(id=>{
+    const m=MODES[id];
+    return `<div class="mode-option ${id===currentMode?'active':''}" onclick="switchMode('${id}')">
+      <span class="mode-option-emoji">${m.emoji}</span>
+      <div class="mode-option-info"><div class="mode-option-label">${m.label}</div><div class="mode-option-meta">${m.kpis.length} rating criteria</div></div>
+      <span class="mode-option-check">\u2713</span>
+    </div>`;
+  }).join('');
+  document.getElementById('mode-picker-overlay').classList.add('show');
+}
+function closeModePicker(){document.getElementById('mode-picker-overlay').classList.remove('show');}
+
+function switchMode(id){
+  if(!MODES[id]){return;}
+  closeModePicker();
+  if(id===currentMode){return;}
+  currentMode=id;
+  try{localStorage.setItem('graze_mode',id);}catch(e){}
+  haptic(15);
+  applyMode();
+  // Rebuild KPI tiles for the new mode
+  rebuildKPIList();
+  // Reset transient state
+  Object.keys(scores).forEach(k=>delete scores[k]);
+  cityFilter='__ALL__';
+  // Re-point Firebase listener
+  attachListener();
+  // Jump to leaderboard
+  showScreen('lb');
+  showToast(MODES[id].emoji+' '+MODES[id].label);
+}
+
+const PILL_COLORS=['r1','r2','r3','r4','r5'];
+let db=null,ratings=[],currentScreen='lb',rankingsTab='all',saving=false;
+let identity=null; // {firstName,lastName,display,raterId}
+let cityFilter='__ALL__'; // leaderboard filter
+const DEFAULT_CITY='Nashville';
 const scores={};
 
+function haptic(ms){try{if(navigator.vibrate)navigator.vibrate(ms||8);}catch(e){}}
+function normalizeKey(name){return (name||'').trim().replace(/\s+/g,' ').replace(/[\u2018\u2019\u201A\u201B\u0060\u00B4]/g,"'").toLowerCase();}
 function calcWeighted(r){let w=0;KPIs.forEach(k=>{if(r[k.key]!=null)w+=r[k.key]*k.weight;});return parseFloat(w.toFixed(2));}
+function scoreColor(v){if(v==null)return 'var(--text-2)';if(v<5)return 'var(--score-low)';if(v<8)return 'var(--score-mid)';return 'var(--score-high)';}
 
+
+// ── Identity ──────────────────────────────────────────────────────────────
+function makeDisplay(first,last){
+  const f=first.trim();const l=last.trim();
+  return f.charAt(0).toUpperCase()+f.slice(1).toLowerCase()+' '+l.charAt(0).toUpperCase()+'.';
+}
+function loadIdentity(){
+  try{const raw=localStorage.getItem('graze_identity');if(raw)identity=JSON.parse(raw);}catch(e){}
+}
+function persistIdentity(){
+  try{localStorage.setItem('graze_identity',JSON.stringify(identity));}catch(e){}
+}
+function genId(){
+  return 'u_'+Date.now().toString(36)+'_'+Math.random().toString(36).slice(2,8);
+}
+function ensureIdentity(){
+  loadIdentity();
+  if(!identity||!identity.raterId){
+    document.getElementById('identity-overlay').classList.add('show');
+    return false;
+  }
+  updateRatingAsChip();
+  return true;
+}
+function updateIdentityPreview(){
+  const f=document.getElementById('ident-first').value.trim();
+  const l=document.getElementById('ident-last').value.trim();
+  const prev=document.getElementById('ident-preview');
+  if(f&&l){prev.innerHTML=`You'll appear as <strong>${makeDisplay(f,l)}</strong>`;}
+  else{prev.innerHTML='';}
+}
+function saveIdentity(){
+  const fEl=document.getElementById('ident-first');
+  const lEl=document.getElementById('ident-last');
+  const f=fEl.value.trim();const l=lEl.value.trim();
+  let ok=true;
+  if(!f){fEl.classList.add('error');ok=false;}else{fEl.classList.remove('error');}
+  if(!l){lEl.classList.add('error');ok=false;}else{lEl.classList.remove('error');}
+  if(!ok){haptic(30);return;}
+  // Preserve existing raterId if editing, otherwise generate new
+  const existingId=(identity&&identity.raterId)?identity.raterId:genId();
+  identity={firstName:f,lastName:l,display:makeDisplay(f,l),raterId:existingId};
+  persistIdentity();
+  document.getElementById('identity-overlay').classList.remove('show');
+  updateRatingAsChip();
+  renderRankings();
+  haptic(15);
+}
+function openIdentityEdit(){
+  if(identity){
+    document.getElementById('ident-first').value=identity.firstName||'';
+    document.getElementById('ident-last').value=identity.lastName||'';
+    updateIdentityPreview();
+  }
+  document.getElementById('identity-overlay').classList.add('show');
+}
+function updateRatingAsChip(){
+  if(!identity)return;
+  const initials=(identity.firstName.charAt(0)+identity.lastName.charAt(0)).toUpperCase();
+  document.getElementById('rating-as-pill').textContent=initials;
+  document.getElementById('rating-as-name').textContent=identity.display;
+}
+
+let _listenerRef=null;
 function initFirebase(){
   try{
     firebase.initializeApp(firebaseConfig);
     db=firebase.database();
-    setSyncStatus('syncing');
-    db.ref('ratings').on('value',snap=>{
-      const data=snap.val();
-      if(!data){
-        writeSeedData();
-      } else {
-        ratings=Object.values(data).map(r=>({...r,weighted:r.weighted!=null?r.weighted:calcWeighted(r)}));
-        onDataLoaded();
-      }
-      setSyncStatus('live');
-    },err=>{
-      console.error(err);
-      setSyncStatus('error');
-      ratings=SEED.map(r=>({...r,weighted:calcWeighted(r)}));
-      onDataLoaded();
-    });
+    try{firebase.database().goOnline();}catch(e){}
     db.ref('.info/connected').on('value',snap=>{
       const ok=snap.val();
       document.getElementById('offline-bar').classList.toggle('show',!ok);
       if(ok)setSyncStatus('live');
     });
-  }catch(e){
-    console.error(e);setSyncStatus('error');
-    ratings=SEED.map(r=>({...r,weighted:calcWeighted(r)}));
-    onDataLoaded();
-  }
+    attachListener();
+  }catch(e){console.error(e);setSyncStatus('error');ratings=[];onDataLoaded();}
 }
-
-function writeSeedData(){
-  const updates={};
-  SEED.forEach(r=>{const k=db.ref('ratings').push().key;updates[k]={...r,weighted:calcWeighted(r)};});
-  db.ref('ratings').update(updates);
+function attachListener(){
+  if(!db){return;}
+  setSyncStatus('syncing');
+  // Detach previous listener
+  if(_listenerRef){try{_listenerRef.off();}catch(e){}}
+  ratings=[];
+  document.getElementById('skeleton').classList.remove('hidden');
+  document.querySelectorAll('.screen').forEach(s=>{if(s.id!=='skeleton')s.classList.add('hidden');});
+  _listenerRef=db.ref(dbPath());
+  let migratedChecked=false;
+  _listenerRef.on('value',snap=>{
+    let data=snap.val();
+    // One-time legacy migration: burger mode falls back to root /ratings if mode path empty
+    if(!data && currentMode==='burger' && !migratedChecked){
+      migratedChecked=true;
+      db.ref('ratings').once('value').then(rootSnap=>{
+        const rootData=rootSnap.val();
+        if(rootData){
+          // Copy root ratings into modes/burger/ratings
+          db.ref('modes/burger/ratings').set(rootData);
+          // listener will fire again with the data
+        } else {
+          ratings=[];onDataLoaded();setSyncStatus('live');
+        }
+      }).catch(()=>{ratings=[];onDataLoaded();setSyncStatus('live');});
+      return;
+    }
+    ratings=data?Object.entries(data).map(([id,r])=>({id,...r,weighted:r.weighted!=null?r.weighted:calcWeighted(r)})):[];
+    onDataLoaded();
+    setSyncStatus('live');
+  },err=>{console.error(err);setSyncStatus('error');ratings=[];onDataLoaded();});
 }
 
 function onDataLoaded(){
-  document.getElementById('loading-screen').classList.add('hidden');
-  document.getElementById('screen-lb').classList.remove('hidden');
-  document.getElementById('nav-lb').classList.add('active');
-  renderLeaderboard();renderRankings();
+  document.getElementById('skeleton').classList.add('hidden');
+  if(document.querySelectorAll('.screen:not(.hidden)').length===0){
+    document.getElementById('screen-'+currentScreen).classList.remove('hidden');
+    document.getElementById('nav-'+currentScreen).classList.add('active');
+  }
+  populateCityDropdown();
+  if(currentScreen==='lb')renderLeaderboard();
+  if(currentScreen==='rankings')renderRankings();
+  if(currentScreen==='merge')renderMerge();
 }
 
-function setSyncStatus(s){
-  const d=document.getElementById('sync-dot');
-  d.className='sync-dot '+s;
-  d.title={live:'Synced',syncing:'Connecting…',error:'Offline mode'}[s]||'';
+function setSyncStatus(s){const d=document.getElementById('sync-dot');d.className='sync-dot '+s;d.title={live:'Synced',syncing:'Connecting…',error:'Offline mode'}[s]||'';}
+
+function raterIdOf(r){
+  // Prefer stable raterId; fall back to legacy 2-letter rater for old data
+  return r.raterId || ('legacy:'+((r.rater||'??').toUpperCase().trim()));
+}
+function raterLabelOf(r){
+  // Display label: new data has display name; legacy data shows its initials
+  return r.rater || '??';
 }
 
-function normalizeKey(name){
-  // Trim whitespace, collapse internal spaces, normalize apostrophes, lowercase for key
-  return (name||'').trim().replace(/\s+/g,' ').replace(/[\u2018\u2019\u201A\u201B\u0060\u00B4]/g,"'").toLowerCase();
+// ── Cities ────────────────────────────────────────────────────────────────
+function cityOf(r){return (r.city&&r.city.trim())?r.city.trim():DEFAULT_CITY;}
+function normCity(c){return (c||'').trim().replace(/\s+/g,' ').toLowerCase();}
+function getAllCities(){
+  const seen={},out=[];
+  ratings.forEach(r=>{const c=cityOf(r);const k=normCity(c);if(!seen[k]){seen[k]=true;out.push(c);}});
+  return out.sort((a,b)=>a.localeCompare(b));
+}
+function populateCityDropdown(){
+  const sel=document.getElementById('city-select');
+  const cities=getAllCities();
+  let saved='';try{saved=localStorage.getItem('graze_last_city')||'';}catch(e){}
+  const opts=cities.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  sel.innerHTML=opts+'<option value="__NEW__">+ New city…</option>';
+  if(saved&&cities.some(c=>normCity(c)===normCity(saved))){sel.value=saved;}
+  else if(cities.length){sel.value=cities[0];}
+  else{sel.value='__NEW__';onCitySelectChange();}
+}
+function onCitySelectChange(){
+  const sel=document.getElementById('city-select');
+  const newInp=document.getElementById('city-new');
+  if(sel.value==='__NEW__'){newInp.style.display='block';newInp.focus();}
+  else{newInp.style.display='none';newInp.value='';}
+  sel.classList.remove('error');document.getElementById('err-city').classList.remove('show');
+}
+function getEnteredCity(){
+  const sel=document.getElementById('city-select');
+  if(sel.value==='__NEW__'){return document.getElementById('city-new').value.trim();}
+  return sel.value;
+}
+function renderCityFilter(){
+  const cities=getAllCities();
+  const bar=document.getElementById('city-filter');
+  if(cities.length<=1){bar.innerHTML='';bar.style.display='none';return;}
+  bar.style.display='flex';
+  const chips=[`<button class="city-chip ${cityFilter==='__ALL__'?'active':''}" onclick="setCityFilter('__ALL__')">All Cities</button>`]
+    .concat(cities.map(c=>`<button class="city-chip ${normCity(cityFilter)===normCity(c)?'active':''}" onclick="setCityFilter('${c.replace(/'/g,"\\'")}')">${c}</button>`));
+  bar.innerHTML=chips.join('');
+}
+function setCityFilter(c){cityFilter=c;haptic();renderCityFilter();renderLeaderboard();}
+function ratingsForFilter(){
+  if(cityFilter==='__ALL__')return ratings;
+  return ratings.filter(r=>normCity(cityOf(r))===normCity(cityFilter));
 }
 
 function computeLeaderboard(){
-  const map={};      // key = normalized name
-  const display={};  // key -> first seen display name
-  ratings.forEach(r=>{
+  const map={},display={},cityMap={};
+  ratingsForFilter().forEach(r=>{
     if(!r.restaurant)return;
-    const key=normalizeKey(r.restaurant);
-    if(!key)return;
-    if(!map[key]){map[key]={kg:[],dg:[],all:[]};display[key]=r.restaurant.trim();}
-    const w=r.weighted!=null?r.weighted:calcWeighted(r);
-    if(r.rater==='KG')map[key].kg.push(w);
-    else if(r.rater==='DG')map[key].dg.push(w);
-    map[key].all.push(w);
+    const key=normalizeKey(r.restaurant);if(!key)return;
+    if(!map[key]){map[key]={};display[key]=r.restaurant.trim();cityMap[key]=cityOf(r);}
+    const rid=raterIdOf(r);
+    if(!map[key][rid])map[key][rid]={label:raterLabelOf(r),scores:[]};
+    map[key][rid].scores.push(r.weighted!=null?r.weighted:calcWeighted(r));
   });
   const avg=arr=>arr.length?arr.reduce((a,b)=>a+b,0)/arr.length:null;
   const fmt=v=>v!=null?parseFloat(v.toFixed(2)):null;
-  const rows=Object.entries(map).map(([key,d])=>({
-    name:display[key],
-    kg:fmt(avg(d.kg)),dg:fmt(avg(d.dg)),
-    avg:(d.kg.length&&d.dg.length)?fmt((avg(d.kg)+avg(d.dg))/2):fmt(avg(d.all))
-  }));
+  // Disambiguate identical display labels across different raterIds
+  const rows=Object.entries(map).map(([key,raters])=>{
+    const ra=Object.entries(raters).map(([rid,o])=>({rid,rater:o.label,avg:avg(o.scores)}));
+    const overall=ra.length?ra.reduce((s,r)=>s+r.avg,0)/ra.length:null;
+    return {name:display[key],city:cityMap[key],raters:ra.map(r=>({rid:r.rid,rater:r.rater,avg:fmt(r.avg)})),avg:fmt(overall)};
+  });
   rows.sort((a,b)=>(b.avg||0)-(a.avg||0));
   return rows;
 }
@@ -337,53 +763,61 @@ function showScreen(name){
   currentScreen=name;
   if(name==='lb')renderLeaderboard();
   if(name==='rankings')renderRankings();
+  if(name==='merge')renderMerge();
   if(name==='rater')document.getElementById('screen-rater').scrollTop=0;
 }
 
+function raterScoreLine(raters){return raters.map(r=>`${r.rater} ${r.avg!=null?r.avg.toFixed(2):'—'}`).join(' · ');}
+
 function renderLeaderboard(){
+  renderCityFilter();
   const lb=computeLeaderboard();
   const podium=document.getElementById('podium');
   const list=document.getElementById('lb-list');
   podium.innerHTML='';list.innerHTML='';
-  if(!lb.length){list.innerHTML='<div class="lb-empty"><p>No ratings yet.<br>Tap Rate to add the first one!</p></div>';return;}
+  if(!lb.length){
+    list.innerHTML='<div class="lb-empty"><span class="lb-empty-emoji" id="lb-empty-emoji">🍔</span><p>No ratings yet.<br>Tap <strong>Rate</strong> to add the first one!</p></div>';
+    return;
+  }
   const medals=['🥇','🥈','🥉'];
   [1,0,2].forEach(idx=>{
     const r=lb[idx];
     if(!r){podium.appendChild(document.createElement('div'));return;}
     const p=document.createElement('div');
     p.className='pod'+(idx===0?' first':'');
-    p.innerHTML=`<span class="pod-medal">${medals[idx]}</span><div class="pod-name">${r.name}</div><div class="pod-score">${r.avg!=null?r.avg.toFixed(2):'—'}</div><div class="pod-score-sub">avg</div>`;
-    p.onclick=()=>showDetail(r.name);
+    p.innerHTML=`<span class="pod-medal">${medals[idx]}</span><div class="pod-name">${r.name}</div><div class="pod-score" style="color:${scoreColor(r.avg)}">${r.avg!=null?r.avg.toFixed(2):'—'}</div><div class="pod-score-sub">${cityFilter==='__ALL__'?r.city:(r.raters.length+' rater'+(r.raters.length!==1?'s':''))}</div>`;
+    p.onclick=()=>{haptic();showDetail(r.name);};
     podium.appendChild(p);
   });
   lb.slice(3).forEach((r,i)=>{
     const row=document.createElement('div');row.className='lb-row';
-    row.innerHTML=`<div class="lb-rank">${i+4}</div><div class="lb-info"><div class="lb-name">${r.name}</div><div class="lb-raters">${r.kg!=null?'KG '+r.kg.toFixed(2):''}${r.kg!=null&&r.dg!=null?' · ':''}${r.dg!=null?'DG '+r.dg.toFixed(2):''}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((r.avg||0)/10*100).toFixed(1)}%"></div></div></div><div class="lb-avg">${r.avg!=null?r.avg.toFixed(2):'—'}</div>`;
-    row.onclick=()=>showDetail(r.name);list.appendChild(row);
+    const cityTag=cityFilter==='__ALL__'?`<span class="lb-city">${r.city}</span>`:'';
+    row.innerHTML=`<div class="lb-rank">${i+4}</div><div class="lb-info"><div class="lb-name">${r.name}${cityTag}</div><div class="lb-raters">${raterScoreLine(r.raters)}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((r.avg||0)/10*100).toFixed(1)}%;background:${scoreColor(r.avg)}"></div></div></div><div class="lb-avg" style="color:${scoreColor(r.avg)}">${r.avg!=null?r.avg.toFixed(2):'—'}</div>`;
+    row.onclick=()=>{haptic();showDetail(r.name);};
+    list.appendChild(row);
   });
-  const badge=document.createElement('div');
-  badge.style.cssText='text-align:center;padding:8px 0 4px;font-size:11px;color:var(--text-2)';
-  badge.textContent=`${lb.length} restaurant${lb.length!==1?'s':''} · ${ratings.length} total rating${ratings.length!==1?'s':''}`;
+  const badge=document.createElement('div');badge.className='lb-count';
+  badge.textContent=`${lb.length} ${lb.length===1?MODES[currentMode].placeSingular:MODES[currentMode].placePlural} · ${ratings.length} total rating${ratings.length!==1?'s':''}`;
   list.appendChild(badge);
 }
 
 function renderRankings(){
   const lb=computeLeaderboard();
   const content=document.getElementById('rankings-content');
+  const myLabel=identity?identity.display:'Mine';
+  const tabs=`<div class="rank-tabs"><button class="rank-tab ${rankingsTab==='all'?'active':''}" onclick="setRankTab('all')">Combined</button><button class="rank-tab ${rankingsTab==='mine'?'active':''}" onclick="setRankTab('mine')">${myLabel}</button></div>`;
   let sorted;
-  if(rankingsTab==='kg')sorted=[...lb].filter(r=>r.kg!=null).sort((a,b)=>b.kg-a.kg);
-  else if(rankingsTab==='dg')sorted=[...lb].filter(r=>r.dg!=null).sort((a,b)=>b.dg-a.dg);
-  else sorted=lb;
+  if(rankingsTab==='mine'&&identity){
+    sorted=lb.map(r=>{const m=r.raters.find(x=>x.rid===identity.raterId);return m?{...r,displayScore:m.avg}:null;}).filter(Boolean).sort((a,b)=>(b.displayScore||0)-(a.displayScore||0));
+  }else{sorted=lb.map(r=>({...r,displayScore:r.avg}));}
   const medals={0:'🥇',1:'🥈',2:'🥉'};
-  const tabs=`<div class="rank-tabs"><button class="rank-tab ${rankingsTab==='all'?'active':''}" onclick="setRankTab('all')">Combined</button><button class="rank-tab ${rankingsTab==='kg'?'active':''}" onclick="setRankTab('kg')">KG</button><button class="rank-tab ${rankingsTab==='dg'?'active':''}" onclick="setRankTab('dg')">DG</button></div>`;
-  if(!sorted.length){content.innerHTML=tabs+'<div class="lb-empty"><p>No ratings yet.</p></div>';return;}
+  if(!sorted.length){content.innerHTML=tabs+'<div class="lb-empty"><span class="lb-empty-emoji" id="lb-empty-emoji">🍔</span><p>'+(rankingsTab==='mine'&&identity?`No ratings from ${identity.display} yet.`:'No ratings yet.')+'</p></div>';return;}
   content.innerHTML=tabs+`<div style="padding:0 12px">${sorted.map((r,i)=>{
-    const score=rankingsTab==='kg'?r.kg:rankingsTab==='dg'?r.dg:r.avg;
-    return `<div class="lb-row" onclick="showDetail('${r.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="lb-rank">${medals[i]!=null?medals[i]:i+1}</div><div class="lb-info"><div class="lb-name">${r.name}</div><div class="lb-raters">${r.kg!=null?'KG '+r.kg.toFixed(2):''}${r.kg!=null&&r.dg!=null?' · ':''}${r.dg!=null?'DG '+r.dg.toFixed(2):''}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((score||0)/10*100).toFixed(1)}%"></div></div></div><div class="lb-avg">${score!=null?score.toFixed(2):'—'}</div></div>`;
+    const score=r.displayScore;
+    return `<div class="lb-row" onclick="haptic();showDetail('${r.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="lb-rank">${medals[i]!=null?medals[i]:i+1}</div><div class="lb-info"><div class="lb-name">${r.name}</div><div class="lb-raters">${raterScoreLine(r.raters)}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((score||0)/10*100).toFixed(1)}%;background:${scoreColor(score)}"></div></div></div><div class="lb-avg" style="color:${scoreColor(score)}">${score!=null?score.toFixed(2):'—'}</div></div>`;
   }).join('')}</div>`;
 }
-
-function setRankTab(tab){rankingsTab=tab;renderRankings();}
+function setRankTab(t){rankingsTab=t;renderRankings();}
 
 function showDetail(name){
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
@@ -391,30 +825,39 @@ function showDetail(name){
   document.getElementById('screen-rankings').classList.remove('hidden');
   document.getElementById('nav-rankings').classList.add('active');
   currentScreen='rankings';
-  const rr=ratings.filter(r=>r.restaurant===name);
-  const kg=rr.find(r=>r.rater==='KG');const dg=rr.find(r=>r.rater==='DG');
-  const lb=computeLeaderboard().find(r=>r.name===name);
+  const lb=computeLeaderboard().find(r=>normalizeKey(r.name)===normalizeKey(name));
+  const rr=ratings.filter(r=>normalizeKey(r.restaurant)===normalizeKey(name));
+  const allRaterIds=[...new Set(rr.map(r=>raterIdOf(r)))].sort();
+  const colorMap={};allRaterIds.forEach((id,i)=>colorMap[id]=PILL_COLORS[i%5]);
+  const labelOf={};rr.forEach(r=>{labelOf[raterIdOf(r)]=raterLabelOf(r);});
+  // Latest entry per raterId for KPI display
+  const latestByRater={};
+  rr.forEach(r=>{const id=raterIdOf(r);if(!latestByRater[id]||(r.date||'')>(latestByRater[id].date||''))latestByRater[id]=r;});
   const kpiRows=KPIs.map(kpi=>{
-    const kv=kg?kg[kpi.key]:null;const dv=dg?dg[kpi.key]:null;
-    return `<div class="kpi-row"><div class="kpi-row-name">${kpi.label}</div><div class="kpi-scores">${kv!=null?`<span class="kpi-pill kg">KG ${kv}</span>`:''}${dv!=null?`<span class="kpi-pill dg">DG ${dv}</span>`:''}</div><div class="kpi-weight">${Math.round(kpi.weight*100)}%</div></div>`;
+    const pills=allRaterIds.map(id=>{const e=latestByRater[id];const v=e?e[kpi.key]:null;return v!=null?`<span class="kpi-pill ${colorMap[id]}">${labelOf[id]} ${v}</span>`:'';}).join('');
+    return `<div class="kpi-row"><div class="kpi-row-name">${kpi.label}</div><div class="kpi-scores">${pills}</div><div class="kpi-weight">${Math.round(kpi.weight*100)}%</div></div>`;
   }).join('');
-  const notesHtml=rr.filter(r=>r.notes).map(r=>`<div style="font-size:12px;color:var(--text-2);padding:6px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--amber)">${r.rater}</span> — ${r.notes}</div>`).join('');
+  const raterTags=lb?lb.raters.map(r=>`<span class="kpi-pill ${colorMap[r.rid]||'r1'}" style="margin-right:4px">${r.rater} ${r.avg!=null?r.avg.toFixed(2):'—'}</span>`).join(''):'';
+  // Visit history (all entries sorted by date desc)
+  const visits=[...rr].sort((a,b)=>(b.date||'').localeCompare(a.date||''));
+  const visitsHtml=visits.map(v=>{const rt=raterLabelOf(v);const w=v.weighted!=null?v.weighted:calcWeighted(v);return `<div class="visit-item"><div class="visit-meta"><span class="visit-rater">${rt}</span><span class="visit-date">${v.date||'—'}</span></div><span class="visit-score" style="color:${scoreColor(w)}">${w.toFixed(2)}</span></div>`;}).join('');
+  const notesHtml=rr.filter(r=>r.notes).map(r=>`<div style="font-size:12px;color:var(--text-2);padding:6px 0;border-bottom:1px solid var(--border)"><span class="kpi-pill ${colorMap[raterIdOf(r)]||'r1'}" style="margin-right:6px">${raterLabelOf(r)}</span>${r.notes}</div>`).join('');
   document.getElementById('rankings-content').innerHTML=`
-    <button class="back-btn" onclick="renderRankings()">
-      <svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>All rankings
-    </button>
+    <button class="back-btn" onclick="renderRankings()"><svg viewBox="0 0 24 24" width="16" height="16" stroke="currentColor" fill="none" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>All rankings</button>
     <div class="rank-card">
-      <div class="rank-card-top">
-        <div><div class="rank-card-name">${name}</div><div style="font-size:11px;color:var(--gold);margin-top:2px">${lb?`KG ${lb.kg!=null?lb.kg.toFixed(2):'—'}  ·  DG ${lb.dg!=null?lb.dg.toFixed(2):'—'}`:''}</div></div>
-        <div class="rank-card-score">${lb&&lb.avg!=null?lb.avg.toFixed(2):'—'}</div>
-      </div>
+      <div class="rank-card-top"><div><div class="rank-card-name">${name}</div><div style="font-size:11px;color:var(--gold);margin-top:2px">${lb&&lb.city?lb.city:''}</div><div style="margin-top:6px">${raterTags}</div></div><div class="rank-card-score" style="color:${scoreColor(lb?lb.avg:null)}">${lb&&lb.avg!=null?lb.avg.toFixed(2):'—'}</div></div>
       <div class="rank-kpis">${kpiRows}</div>
+      ${visits.length>1?`<div class="visits-section"><div class="visits-title">Visit history</div>${visitsHtml}</div>`:''}
       ${notesHtml?`<div style="padding:0 16px 12px"><div style="font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;color:var(--text-2);margin-bottom:6px">Notes</div>${notesHtml}</div>`:''}
     </div>`;
 }
 
-function buildKPIs(){
+function rebuildKPIList(){
   const list=document.getElementById('kpi-list');
+  list.innerHTML='';
+  document.getElementById('kpi-progress').textContent='0 of '+KPIs.length+' rated';
+  document.getElementById('total-score').textContent='—';
+  document.getElementById('progress-fill').style.width='0%';
   KPIs.forEach(kpi=>{
     const block=document.createElement('div');block.className='kpi-block';block.id='block-'+kpi.key;
     block.innerHTML=`<div class="kpi-top"><span class="kpi-name">${kpi.label}</span><div class="kpi-meta"><span class="kpi-wt">${Math.round(kpi.weight*100)}%</span><span class="kpi-val empty" id="val-${kpi.key}">—</span></div></div><div class="btn-row" id="row-${kpi.key}"></div>`;
@@ -425,6 +868,7 @@ function buildKPIs(){
 }
 
 function setScore(key,val){
+  haptic(8);
   scores[key]=val;
   document.getElementById('row-'+key).querySelectorAll('.score-btn').forEach((b,i)=>b.classList.toggle('lit',i<val));
   const v=document.getElementById('val-'+key);v.textContent=val;v.classList.remove('empty');
@@ -433,59 +877,164 @@ function setScore(key,val){
 }
 
 function updateTotal(){
-  let w=0,count=0;KPIs.forEach(k=>{if(scores[k.key]!=null){w+=scores[k.key]*k.weight;count++;}});
-  const el=document.getElementById('total-score');const fill=document.getElementById('progress-fill');
+  let w=0,count=0;
+  KPIs.forEach(k=>{if(scores[k.key]!=null){w+=scores[k.key]*k.weight;count++;}});
   document.getElementById('kpi-progress').textContent=`${count} of ${KPIs.length} rated`;
-  if(count>0){el.textContent=w.toFixed(2);fill.style.width=(w/10*100).toFixed(1)+'%';}
-  else{el.textContent='—';fill.style.width='0%';}
+  const el=document.getElementById('total-score');const fill=document.getElementById('progress-fill');
+  if(count>0){el.textContent=w.toFixed(2);el.style.color=scoreColor(w);fill.style.width=(w/10*100).toFixed(1)+'%';fill.style.background=scoreColor(w);}
+  else{el.textContent='—';el.style.color='var(--accent)';fill.style.width='0%';}
 }
 
-function selectRater(r){selectedRater=r;document.querySelectorAll('.rater-btn').forEach(b=>b.classList.toggle('active',b.dataset.rater===r));}
+// Strict initials: exactly 2 uppercase letters
+document.addEventListener('DOMContentLoaded',()=>{
+  const rest=document.getElementById('restaurant');
+  rest.addEventListener('input',()=>{rest.classList.remove('error');document.getElementById('err-restaurant').classList.remove('show');});
+  // Live preview in identity modal
+  const cityNew=document.getElementById('city-new');
+  if(cityNew)cityNew.addEventListener('input',()=>{document.getElementById('city-select').classList.remove('error');document.getElementById('err-city').classList.remove('show');});
+  ['ident-first','ident-last'].forEach(id=>{
+    const el=document.getElementById(id);
+    el.addEventListener('input',()=>{el.classList.remove('error');updateIdentityPreview();});
+  });
+});
 
+// ── Autocomplete ──
+function getUniqueRestaurants(scopeCity){
+  const seen={},result=[];
+  ratings.forEach(r=>{
+    if(!r.restaurant)return;
+    if(scopeCity&&normCity(cityOf(r))!==normCity(scopeCity))return;
+    const k=normalizeKey(r.restaurant);if(!seen[k]){seen[k]=true;result.push(r.restaurant.trim());}
+  });
+  return result.sort((a,b)=>a.localeCompare(b));
+}
+function escRe(s){return s.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');}
+function initAutocomplete(){
+  const inp=document.getElementById('restaurant');
+  const wrap=inp.parentElement;wrap.classList.add('ac-wrap');
+  const dd=document.createElement('div');dd.className='ac-dropdown';dd.id='ac-dropdown';wrap.appendChild(dd);
+  inp.addEventListener('input',()=>{
+    const val=inp.value.trim().toLowerCase();
+    if(!val){dd.classList.remove('show');return;}
+    const matches=getUniqueRestaurants(getEnteredCity()).filter(r=>normalizeKey(r).includes(val)&&normalizeKey(r)!==val);
+    if(!matches.length){dd.classList.remove('show');return;}
+    dd.innerHTML=matches.slice(0,6).map(r=>{const hi=r.replace(new RegExp('('+escRe(val)+')','gi'),'<strong>$1</strong>');return `<div class="ac-item" onclick="selectRestaurant('${r.replace(/'/g,"\\'")}')">${hi}</div>`;}).join('');
+    dd.classList.add('show');
+  });
+  inp.addEventListener('blur',()=>setTimeout(()=>dd.classList.remove('show'),150));
+}
+function selectRestaurant(name){document.getElementById('restaurant').value=name;document.getElementById('ac-dropdown').classList.remove('show');haptic();}
+
+// ── Merge ──
+let mergeFrom=null;
+function renderMerge(){
+  const names=getUniqueRestaurants();
+  const list=document.getElementById('merge-list');
+  const banner=document.getElementById('merge-pending-banner');
+  banner.innerHTML='';
+  if(mergeFrom){banner.innerHTML=`<div class="merge-pending">Merging <strong>${mergeFrom}</strong> — pick the correct name below to merge into.<button class="merge-cancel-btn" onclick="cancelMerge()">Cancel</button></div>`;}
+  if(names.length<2){list.innerHTML='<div class="merge-empty">'+(names.length===0?'No ratings yet.':'Only one name — nothing to merge.')+'</div>';return;}
+  list.innerHTML=names.map(name=>{
+    const count=ratings.filter(r=>normalizeKey(r.restaurant)===normalizeKey(name)).length;
+    const isFrom=mergeFrom===name;
+    return `<div class="merge-card"><div class="merge-card-header"><span>${name}</span><span class="merge-card-count">${count} rating${count!==1?'s':''}</span></div><div class="merge-aliases">${mergeFrom&&!isFrom?`<button class="merge-btn primary" style="width:100%" onclick="confirmMerge('${name.replace(/'/g,"\\'")}')">← Merge "${mergeFrom}" into this</button>`:''}${!mergeFrom?`<button class="merge-btn danger" style="width:100%" onclick="startMerge('${name.replace(/'/g,"\\'")}')">Merge this into another →</button>`:''}${isFrom?'<div style="font-size:12px;color:var(--text-2)">Pick the target above.</div>':''}</div></div>`;
+  }).join('');
+}
+function startMerge(n){mergeFrom=n;haptic();renderMerge();}
+function cancelMerge(){mergeFrom=null;renderMerge();}
+async function confirmMerge(target){
+  if(!mergeFrom||!target||mergeFrom===target)return;
+  const fromKey=normalizeKey(mergeFrom);showToast('Merging…');
+  try{
+    const snap=await db.ref(dbPath()).once('value');const data=snap.val();
+    if(data){const updates={};Object.entries(data).forEach(([key,r])=>{if(normalizeKey(r.restaurant)===fromKey)updates[key+'/restaurant']=target;});if(Object.keys(updates).length)await db.ref(dbPath()).update(updates);}
+    showToast(`Merged → "${target}" ✓`);mergeFrom=null;
+  }catch(e){console.error(e);showToast('Merge failed');mergeFrom=null;}
+  renderMerge();
+}
+
+// ── Save with validation + debounce ──
 async function saveRating(){
+  if(saving)return;
   const restaurant=document.getElementById('restaurant').value.trim();
+  const city=getEnteredCity();
   const dateVal=document.getElementById('visit-date').value;
   const notes=document.getElementById('notes').value.trim();
-  if(!restaurant){showToast('Add a restaurant name');return;}
-  if(!selectedRater){showToast('Pick a rater — KG or DG');return;}
+  if(!identity||!identity.raterId){openIdentityEdit();showToast('Set your name first');return;}
+  let ok=true;
+  if(!city){document.getElementById('city-select').classList.add('error');document.getElementById('err-city').classList.add('show');ok=false;}
+  if(!restaurant){document.getElementById('restaurant').classList.add('error');document.getElementById('err-restaurant').classList.add('show');ok=false;}
+  if(!ok){haptic(30);return;}
   const missing=KPIs.filter(k=>scores[k.key]==null);
-  if(missing.length){showToast(`${missing.length} KPI${missing.length>1?'s':''} still need a score`);return;}
+  if(missing.length){showToast(`${missing.length} KPI${missing.length>1?'s':''} still need a score`);haptic(30);return;}
+  saving=true;
   const btn=document.getElementById('btn-save');btn.disabled=true;btn.textContent='Saving…';
   let w=0;KPIs.forEach(k=>{w+=scores[k.key]*k.weight;});
-  const entry={restaurant,rater:selectedRater,date:dateVal||new Date().toISOString().split('T')[0],notes,weighted:parseFloat(w.toFixed(2)),savedAt:new Date().toISOString()};
+  try{localStorage.setItem('graze_last_city',city);}catch(e){}
+  const entry={restaurant,city,mode:currentMode,rater:identity.display,raterId:identity.raterId,firstName:identity.firstName,lastName:identity.lastName,date:dateVal||new Date().toISOString().split('T')[0],notes,weighted:parseFloat(w.toFixed(2)),savedAt:new Date().toISOString()};
   KPIs.forEach(k=>{entry[k.key]=scores[k.key];});
   try{
-    if(db){await db.ref('ratings').push(entry);}
-    else{ratings.push({...entry});renderLeaderboard();renderRankings();}
+    if(db){await db.ref(dbPath()).push(entry);}
+    else{ratings.push({...entry});renderLeaderboard();}
+    haptic(15);
     document.getElementById('success-banner').classList.add('show');
-    document.getElementById('success-msg').textContent=`${restaurant} (${selectedRater}) — ${w.toFixed(2)}/10 saved.`;
+    document.getElementById('success-msg').textContent=`${restaurant} (${identity.display}) — ${w.toFixed(2)}/10 saved.`;
     document.getElementById('screen-rater').scrollTop=0;
-    showToast('Rating saved! 🍔');
+    showToast('Rating saved!');
+    setTimeout(()=>{clearFormFields();populateCityDropdown();},900);
   }catch(e){showToast('Save failed — check connection');console.error(e);}
-  finally{btn.disabled=false;btn.innerHTML='💾 Save rating';}
+  finally{saving=false;btn.disabled=false;btn.innerHTML='<span id="save-emoji">🍔</span> Save rating';}
 }
 
-function resetForm(){
-  document.getElementById('restaurant').value='';document.getElementById('notes').value='';
+function askClearForm(){
+  const hasData=document.getElementById('restaurant').value||Object.keys(scores).length||document.getElementById('notes').value;
+  if(!hasData){return;}
+  document.getElementById('clear-modal').classList.add('show');
+}
+function closeClearModal(){document.getElementById('clear-modal').classList.remove('show');}
+function doClearForm(){closeClearModal();clearFormFields();document.getElementById('restaurant').value='';showToast('Form cleared');}
+
+function clearFormFields(){
+  document.getElementById('restaurant').value='';
+  document.getElementById('notes').value='';
   document.getElementById('visit-date').value=new Date().toISOString().split('T')[0];
-  selectedRater=null;document.querySelectorAll('.rater-btn').forEach(b=>b.classList.remove('active'));
   Object.keys(scores).forEach(k=>delete scores[k]);
-  KPIs.forEach(kpi=>{
-    const v=document.getElementById('val-'+kpi.key);v.textContent='—';v.classList.add('empty');
-    document.getElementById('row-'+kpi.key).querySelectorAll('.score-btn').forEach(b=>b.classList.remove('lit'));
-    document.getElementById('block-'+kpi.key).classList.remove('scored');
-  });
-  document.getElementById('success-banner').classList.remove('show');updateTotal();
+  KPIs.forEach(kpi=>{const v=document.getElementById('val-'+kpi.key);v.textContent='—';v.classList.add('empty');document.getElementById('row-'+kpi.key).querySelectorAll('.score-btn').forEach(b=>b.classList.remove('lit'));document.getElementById('block-'+kpi.key).classList.remove('scored');});
+  document.getElementById('success-banner').classList.remove('show');
+  updateTotal();
 }
 
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 
-buildKPIs();
-document.getElementById('visit-date').value=new Date().toISOString().split('T')[0];
-initFirebase();
-if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+// ── Swipe between tabs ──
+const SCREENS=['lb','rankings','rater','merge'];
+let touchX=0,touchY=0;
+document.getElementById('screens-wrap').addEventListener('touchstart',e=>{touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;},{passive:true});
+document.getElementById('screens-wrap').addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-touchX;const dy=e.changedTouches[0].clientY-touchY;
+  if(Math.abs(dx)<60||Math.abs(dy)>50)return;
+  // Don't swipe when in a detail view (rankings showing a card)
+  const idx=SCREENS.indexOf(currentScreen);
+  if(dx<0&&idx<SCREENS.length-1){showScreen(SCREENS[idx+1]);haptic();}
+  else if(dx>0&&idx>0){showScreen(SCREENS[idx-1]);haptic();}
+},{passive:true});
 
-// Nav sits at bottom:0 naturally — no JS padding needed
+// ── Pull to refresh ──
+let ptrStart=0,ptrActive=false;
+const lbScreen=document.getElementById('screen-lb');
+lbScreen.addEventListener('touchstart',e=>{if(lbScreen.scrollTop<=0){ptrStart=e.touches[0].clientY;ptrActive=true;}},{passive:true});
+lbScreen.addEventListener('touchmove',e=>{if(!ptrActive)return;const d=e.touches[0].clientY-ptrStart;if(d>70){document.getElementById('ptr').classList.add('visible');}},{passive:true});
+lbScreen.addEventListener('touchend',()=>{if(document.getElementById('ptr').classList.contains('visible')){haptic();setTimeout(()=>{document.getElementById('ptr').classList.remove('visible');renderLeaderboard();showToast('Refreshed');},600);}ptrActive=false;});
+
+loadMode();
+applyMode();
+rebuildKPIList();
+initAutocomplete();
+document.getElementById('visit-date').value=new Date().toISOString().split('T')[0];
+ensureIdentity();
+initFirebase();
+
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
 </script>
 </body>
 </html>

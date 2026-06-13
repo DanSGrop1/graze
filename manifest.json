@@ -1,7 +1,7 @@
 {
-  "name": "Nashville Burger Rater",
-  "short_name": "Burger Rater",
-  "description": "KG & DG official Nashville burger scorecard",
+  "name": "Graze",
+  "short_name": "Graze",
+  "description": "Food scorecard — rate, rank, repeat",
   "start_url": "./",
   "display": "standalone",
   "orientation": "portrait",
