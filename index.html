@@ -384,7 +384,7 @@ html,body{height:100%;height:100dvh;font-family:-apple-system,BlinkMacSystemFont
       <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
       <span class="nav-label">Rate</span>
     </button>
-    <button class="nav-btn" id="nav-merge" onclick="showScreen('merge')">
+    <button class="nav-btn" id="nav-merge" onclick="showScreen('merge')" style="display:none">
       <svg viewBox="0 0 24 24"><path d="M18 6 6 18M6 6l12 12"/><circle cx="12" cy="12" r="9" opacity="0.4"/></svg>
       <span class="nav-label">Merge</span>
     </button>
@@ -543,6 +543,48 @@ function switchMode(id){
   showToast(MODES[id].emoji+' '+MODES[id].label);
 }
 
+
+// ── Admin gating (Merge tab) ───────────────────────────────────────────────
+const ADMIN_PASS='groppi'; // change to your secret
+function isAdmin(){try{return localStorage.getItem('graze_admin')==='1';}catch(e){return false;}}
+function applyAdminVisibility(){
+  const btn=document.getElementById('nav-merge');
+  if(btn)btn.style.display=isAdmin()?'':'none';
+  // If a non-admin is somehow on the merge screen, bounce to leaderboard
+  if(!isAdmin()&&currentScreen==='merge')showScreen('lb');
+}
+function promptAdminUnlock(){
+  const entry=prompt('Enter admin passphrase to enable the Merge tab:');
+  if(entry===null)return;
+  if(entry===ADMIN_PASS){
+    try{localStorage.setItem('graze_admin','1');}catch(e){}
+    applyAdminVisibility();
+    showToast('Merge tab unlocked \u2713');
+    haptic(15);
+  }else{
+    showToast('Incorrect passphrase');
+    haptic(30);
+  }
+}
+function lockAdmin(){try{localStorage.removeItem('graze_admin');}catch(e){}applyAdminVisibility();showToast('Merge tab hidden');}
+// Hidden unlock gesture: 5 quick taps on the sync dot
+let _adminTaps=0,_adminTapTimer=null;
+document.addEventListener('DOMContentLoaded',()=>{
+  const dot=document.getElementById('sync-dot');
+  if(dot){
+    dot.style.cursor='default';
+    dot.addEventListener('click',()=>{
+      _adminTaps++;
+      clearTimeout(_adminTapTimer);
+      _adminTapTimer=setTimeout(()=>{_adminTaps=0;},1500);
+      if(_adminTaps>=5){
+        _adminTaps=0;
+        if(isAdmin()){lockAdmin();}else{promptAdminUnlock();}
+      }
+    });
+  }
+});
+
 const PILL_COLORS=['r1','r2','r3','r4','r5'];
 let db=null,ratings=[],currentScreen='lb',rankingsTab='all',saving=false;
 let identity=null; // {firstName,lastName,display,raterId}
@@ -698,13 +740,22 @@ function getAllCities(){
 }
 function populateCityDropdown(){
   const sel=document.getElementById('city-select');
+  const newInp=document.getElementById('city-new');
   const cities=getAllCities();
   let saved='';try{saved=localStorage.getItem('graze_last_city')||'';}catch(e){}
-  const opts=cities.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
-  sel.innerHTML=opts+'<option value="__NEW__">+ New city…</option>';
+  // Build options. When there are no cities yet, lead with a neutral prompt
+  // option so the new-city text field stays hidden until the user chooses.
+  let opts='';
+  if(!cities.length){opts+='<option value="" disabled selected>Select a city…</option>';}
+  opts+=cities.map(c=>`<option value="${c.replace(/"/g,'&quot;')}">${c}</option>`).join('');
+  opts+='<option value="__NEW__">+ New city…</option>';
+  sel.innerHTML=opts;
   if(saved&&cities.some(c=>normCity(c)===normCity(saved))){sel.value=saved;}
   else if(cities.length){sel.value=cities[0];}
-  else{sel.value='__NEW__';onCitySelectChange();}
+  else{sel.value='';}
+  // Always start with the new-city field hidden; only reveal on explicit pick
+  newInp.style.display='none';
+  newInp.value='';
 }
 function onCitySelectChange(){
   const sel=document.getElementById('city-select');
@@ -756,6 +807,7 @@ function computeLeaderboard(){
 }
 
 function showScreen(name){
+  if(name==='merge'&&!isAdmin()){name='lb';}
   document.querySelectorAll('.screen').forEach(s=>s.classList.add('hidden'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
   document.getElementById('screen-'+name).classList.remove('hidden');
@@ -776,7 +828,7 @@ function renderLeaderboard(){
   const list=document.getElementById('lb-list');
   podium.innerHTML='';list.innerHTML='';
   if(!lb.length){
-    list.innerHTML='<div class="lb-empty"><span class="lb-empty-emoji" id="lb-empty-emoji">🍔</span><p>No ratings yet.<br>Tap <strong>Rate</strong> to add the first one!</p></div>';
+    list.innerHTML='<div class="lb-empty"><span class="lb-empty-emoji">'+MODES[currentMode].emoji+'</span><p>No ratings yet.<br>Tap <strong>Rate</strong> to add the first one!</p></div>';
     return;
   }
   const medals=['🥇','🥈','🥉'];
@@ -811,7 +863,7 @@ function renderRankings(){
     sorted=lb.map(r=>{const m=r.raters.find(x=>x.rid===identity.raterId);return m?{...r,displayScore:m.avg}:null;}).filter(Boolean).sort((a,b)=>(b.displayScore||0)-(a.displayScore||0));
   }else{sorted=lb.map(r=>({...r,displayScore:r.avg}));}
   const medals={0:'🥇',1:'🥈',2:'🥉'};
-  if(!sorted.length){content.innerHTML=tabs+'<div class="lb-empty"><span class="lb-empty-emoji" id="lb-empty-emoji">🍔</span><p>'+(rankingsTab==='mine'&&identity?`No ratings from ${identity.display} yet.`:'No ratings yet.')+'</p></div>';return;}
+  if(!sorted.length){content.innerHTML=tabs+'<div class="lb-empty"><span class="lb-empty-emoji">'+MODES[currentMode].emoji+'</span><p>'+(rankingsTab==='mine'&&identity?`No ratings from ${identity.display} yet.`:'No ratings yet.')+'</p></div>';return;}
   content.innerHTML=tabs+`<div style="padding:0 12px">${sorted.map((r,i)=>{
     const score=r.displayScore;
     return `<div class="lb-row" onclick="haptic();showDetail('${r.name.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')"><div class="lb-rank">${medals[i]!=null?medals[i]:i+1}</div><div class="lb-info"><div class="lb-name">${r.name}</div><div class="lb-raters">${raterScoreLine(r.raters)}</div><div class="lb-bar-wrap"><div class="lb-bar" style="width:${((score||0)/10*100).toFixed(1)}%;background:${scoreColor(score)}"></div></div></div><div class="lb-avg" style="color:${scoreColor(score)}">${score!=null?score.toFixed(2):'—'}</div></div>`;
@@ -1007,16 +1059,16 @@ function clearFormFields(){
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
 
 // ── Swipe between tabs ──
-const SCREENS=['lb','rankings','rater','merge'];
+function activeScreens(){return isAdmin()?['lb','rankings','rater','merge']:['lb','rankings','rater'];}
 let touchX=0,touchY=0;
 document.getElementById('screens-wrap').addEventListener('touchstart',e=>{touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;},{passive:true});
 document.getElementById('screens-wrap').addEventListener('touchend',e=>{
   const dx=e.changedTouches[0].clientX-touchX;const dy=e.changedTouches[0].clientY-touchY;
   if(Math.abs(dx)<60||Math.abs(dy)>50)return;
   // Don't swipe when in a detail view (rankings showing a card)
-  const idx=SCREENS.indexOf(currentScreen);
-  if(dx<0&&idx<SCREENS.length-1){showScreen(SCREENS[idx+1]);haptic();}
-  else if(dx>0&&idx>0){showScreen(SCREENS[idx-1]);haptic();}
+  const SC=activeScreens();const idx=SC.indexOf(currentScreen);
+  if(dx<0&&idx<SC.length-1){showScreen(SC[idx+1]);haptic();}
+  else if(dx>0&&idx>0){showScreen(SC[idx-1]);haptic();}
 },{passive:true});
 
 // ── Pull to refresh ──
@@ -1029,6 +1081,7 @@ lbScreen.addEventListener('touchend',()=>{if(document.getElementById('ptr').clas
 loadMode();
 applyMode();
 rebuildKPIList();
+applyAdminVisibility();
 initAutocomplete();
 document.getElementById('visit-date').value=new Date().toISOString().split('T')[0];
 ensureIdentity();
